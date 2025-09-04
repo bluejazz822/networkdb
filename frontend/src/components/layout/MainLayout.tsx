@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { Layout, Menu, Typography, Avatar, Dropdown, Space, Breadcrumb } from 'antd'
+import { Layout, Menu, Typography, Space, Breadcrumb } from 'antd'
 import {
   DashboardOutlined,
   GlobalOutlined,
@@ -8,13 +8,13 @@ import {
   SwapOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  UserOutlined,
   SettingOutlined,
-  LogoutOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAppStore } from '@/store/useAppStore'
-import type { MenuProps } from 'antd'
+import { UserDropdown } from '@/components/auth'
+import { RoleBasedRender } from '@/components/auth'
+import { PERMISSIONS } from '@/utils/permissions'
 
 const { Header, Sider, Content } = Layout
 const { Title } = Typography
@@ -53,69 +53,94 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     }
   }, [location.pathname, setCurrentPage, setBreadcrumbs])
 
-  const menuItems = [
-    {
+  // Build menu items based on user permissions
+  const buildMenuItems = () => {
+    const items = [];
+
+    // Dashboard (always visible if authenticated)
+    items.push({
       key: '/dashboard',
       icon: <DashboardOutlined />,
       label: 'Dashboard',
-    },
-    {
+    });
+
+    // Network resources (based on permissions)
+    const networkItems = [];
+    
+    // Network Devices
+    networkItems.push({
       key: '/devices',
       icon: <GlobalOutlined />,
       label: 'Network Devices',
-    },
-    {
+      permission: PERMISSIONS.NETWORK_READ,
+    });
+
+    // VPCs
+    networkItems.push({
       key: '/vpcs',
       icon: <CloudOutlined />,
       label: 'VPCs',
-    },
-    {
+      permission: PERMISSIONS.VPC_READ,
+    });
+
+    // Subnets
+    networkItems.push({
       key: '/subnets',
       icon: <BranchesOutlined />,
       label: 'Subnets',
-    },
-    {
+      permission: PERMISSIONS.NETWORK_READ,
+    });
+
+    // Transit Gateways
+    networkItems.push({
       key: '/transit-gateways',
       icon: <SwapOutlined />,
       label: 'Transit Gateways',
-    },
-  ]
+      permission: PERMISSIONS.NETWORK_READ,
+    });
 
-  const userMenuItems: MenuProps['items'] = [
-    {
-      key: 'profile',
-      label: 'Profile',
-      icon: <UserOutlined />,
-    },
-    {
-      key: 'settings',
-      label: 'Settings',
+    // Add network items if user has any network permissions
+    items.push(...networkItems);
+
+    // Admin section
+    const adminItems = [];
+    adminItems.push({
+      key: 'admin',
       icon: <SettingOutlined />,
-    },
-    {
-      type: 'divider',
-    },
-    {
-      key: 'logout',
-      label: 'Logout',
-      icon: <LogoutOutlined />,
-    },
-  ]
+      label: 'Administration',
+      type: 'group',
+      children: [
+        {
+          key: '/admin/users',
+          label: 'User Management',
+          permission: PERMISSIONS.USER_READ,
+        },
+        {
+          key: '/admin/roles',
+          label: 'Role Management',
+          permission: PERMISSIONS.ROLE_READ,
+        },
+        {
+          key: '/admin/security',
+          label: 'Security Dashboard',
+          permission: PERMISSIONS.SYSTEM_READ,
+        },
+      ]
+    });
+
+    // Add admin items if user has admin permissions
+    items.push(...adminItems);
+
+    return items;
+  };
+
+  const menuItems = buildMenuItems()
+
 
   const handleMenuClick = ({ key }: { key: string }) => {
     navigate(key)
   }
 
-  const handleUserMenuClick: MenuProps['onClick'] = ({ key }) => {
-    switch (key) {
-      case 'logout':
-        // Handle logout logic here
-        console.log('Logout clicked')
-        break
-      default:
-        console.log(`${key} clicked`)
-    }
-  }
 
   return (
     <>
@@ -178,15 +203,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             </Title>
           </Space>
           
-          <Dropdown
-            menu={{ items: userMenuItems, onClick: handleUserMenuClick }}
-            placement="bottomRight"
-          >
-            <Space style={{ cursor: 'pointer' }}>
-              <Avatar icon={<UserOutlined />} />
-              <span style={{ color: '#fff' }}>Admin User</span>
-            </Space>
-          </Dropdown>
+          <UserDropdown />
         </Header>
         
         <Layout style={{ marginTop: 64, minHeight: 'calc(100vh - 64px)' }}>

@@ -249,6 +249,219 @@ export interface TopologyEdge {
   status: 'active' | 'inactive' | 'pending';
 }
 
+// Authentication and User types
+export interface User {
+  id: string;
+  username: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  isActive: boolean;
+  isEmailVerified: boolean;
+  lastLoginAt?: string;
+  mfaEnabled: boolean;
+  loginAttempts: number;
+  accountLockedUntil?: string;
+  createdAt: string;
+  updatedAt: string;
+  roles?: Role[];
+  permissions?: string[];
+  fullName?: string;
+}
+
+export interface Role {
+  id: string;
+  name: string;
+  displayName: string;
+  description?: string;
+  isSystem: boolean;
+  isActive: boolean;
+  priority: number;
+  createdAt: string;
+  updatedAt: string;
+  permissions?: Permission[];
+}
+
+export interface Permission {
+  id: string;
+  name: string;
+  displayName: string;
+  description?: string;
+  resource: string;
+  action: string;
+  isSystem: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  fullPermission?: string;
+}
+
+// Authentication request/response types
+export interface LoginRequest {
+  username: string;
+  password: string;
+  mfaToken?: string;
+  rememberMe?: boolean;
+}
+
+export interface LoginResponse {
+  success: boolean;
+  data: {
+    user: User;
+    token: string;
+    expiresIn: number;
+    refreshToken?: string;
+  };
+  message?: string;
+}
+
+export interface RegisterRequest {
+  username: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  firstName: string;
+  lastName: string;
+  acceptTerms: boolean;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  password: string;
+  confirmPassword: string;
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+export interface UpdateProfileRequest {
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+// MFA types
+export interface MfaSetupResponse {
+  secret: string;
+  qrCode: string;
+  backupCodes: string[];
+}
+
+export interface MfaVerifyRequest {
+  token: string;
+  backupCode?: string;
+}
+
+// Session and security types
+export interface UserSession {
+  id: string;
+  userId: string;
+  deviceInfo: string;
+  ipAddress: string;
+  userAgent: string;
+  isActive: boolean;
+  lastActivity: string;
+  createdAt: string;
+}
+
+export interface SecurityEvent {
+  id: string;
+  userId: string;
+  eventType: 'login' | 'logout' | 'password_change' | 'mfa_enabled' | 'mfa_disabled' | 'account_locked' | 'failed_login';
+  description: string;
+  ipAddress: string;
+  userAgent: string;
+  metadata?: Record<string, any>;
+  createdAt: string;
+}
+
+// Authentication context types
+export interface AuthContextType {
+  user: User | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  login: (credentials: LoginRequest) => Promise<void>;
+  register: (userData: RegisterRequest) => Promise<void>;
+  logout: () => void;
+  refreshToken: () => Promise<void>;
+  updateProfile: (data: UpdateProfileRequest) => Promise<void>;
+  changePassword: (data: ChangePasswordRequest) => Promise<void>;
+  hasPermission: (permission: string) => boolean;
+  hasRole: (roleName: string) => boolean;
+  hasAnyPermission: (permissions: string[]) => boolean;
+  hasAllPermissions: (permissions: string[]) => boolean;
+}
+
+// Permission checking utilities
+export interface PermissionCheckOptions {
+  requireAll?: boolean; // If true, user must have ALL permissions; if false, user must have ANY permission
+  strict?: boolean; // If true, disabled users/roles are considered as having no permissions
+}
+
+// User management types
+export interface UserListFilter {
+  search?: string;
+  isActive?: boolean;
+  isEmailVerified?: boolean;
+  roles?: string[];
+  createdAfter?: string;
+  createdBefore?: string;
+}
+
+export interface CreateUserRequest {
+  username: string;
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  roles?: string[];
+  isActive?: boolean;
+  sendWelcomeEmail?: boolean;
+}
+
+export interface UpdateUserRequest {
+  username?: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  isActive?: boolean;
+  roles?: string[];
+}
+
+// Role management types
+export interface CreateRoleRequest {
+  name: string;
+  displayName: string;
+  description?: string;
+  permissions?: string[];
+  priority?: number;
+}
+
+export interface UpdateRoleRequest {
+  displayName?: string;
+  description?: string;
+  permissions?: string[];
+  priority?: number;
+  isActive?: boolean;
+}
+
+// Permission management types
+export interface CreatePermissionRequest {
+  name: string;
+  displayName: string;
+  description?: string;
+  resource: string;
+  action: string;
+}
+
 // Resource template types
 export interface ResourceTemplate {
   id: string;

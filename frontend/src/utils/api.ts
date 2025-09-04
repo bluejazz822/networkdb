@@ -31,7 +31,7 @@ api.interceptors.request.use(
   }
 )
 
-// Response interceptor
+// Response interceptor with token refresh logic
 api.interceptors.response.use(
   (response) => {
     // Log responses in development
@@ -41,15 +41,57 @@ api.interceptors.response.use(
     
     return response
   },
-  (error) => {
-    // Handle common errors
-    if (error.response?.status === 401) {
-      // Handle unauthorized access
-      localStorage.removeItem('auth_token')
-      window.location.href = '/login'
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Handle 401 errors with token refresh
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      
+      const refreshToken = localStorage.getItem('refresh_token');
+      
+      if (refreshToken && !originalRequest.url?.includes('/auth/refresh')) {
+        try {
+          // Attempt to refresh the token
+          const refreshResponse = await api.post('/auth/refresh', { refreshToken });
+          const { token } = refreshResponse.data.data;
+          
+          // Update stored token
+          localStorage.setItem('auth_token', token);
+          
+          // Update the authorization header for the original request
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          
+          // Retry the original request
+          return api.request(originalRequest);
+        } catch (refreshError) {
+          // Refresh failed, redirect to login
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('refresh_token');
+          
+          // Only redirect if not already on auth pages
+          if (!window.location.pathname.startsWith('/auth/')) {
+            window.location.href = '/auth/login';
+          }
+          
+          return Promise.reject(refreshError);
+        }
+      } else {
+        // No refresh token or already trying to refresh, redirect to login
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('refresh_token');
+        
+        // Only redirect if not already on auth pages
+        if (!window.location.pathname.startsWith('/auth/')) {
+          window.location.href = '/auth/login';
+        }
+      }
+    } else if (error.response?.status === 403) {
+      // Handle forbidden access (insufficient permissions)
+      console.warn('Forbidden: Insufficient permissions for this action');
     } else if (error.response?.status >= 500) {
       // Handle server errors
-      console.error('Server error:', error.response.data)
+      console.error('Server error:', error.response.data);
     }
     
     return Promise.reject(error)
