@@ -1,112 +1,189 @@
--- Database Indexing Strategy for Network CMDB
+-- Database Indexing Strategy for AWS Network CMDB
 -- Optimized for 100K+ records and <2 second response time
+-- Based on actual schema: VPCs, Subnets, Transit Gateways, Customer Gateways, etc.
 -- 
 -- Performance Goals:
--- - Search operations: <2 seconds
--- - Filter operations: <1 second  
--- - Complex joins: <3 seconds
--- - Dashboard queries: <1 second
+-- - AWS ID lookups: <100ms (exact matches)
+-- - Region/Account filtering: <500ms
+-- - Resource searches: <2 seconds
+-- - Dashboard aggregations: <1 second
+-- - Complex joins across resources: <3 seconds
 --
 -- Index Strategy:
--- 1. Primary lookups (exact matches)
--- 2. Search operations (LIKE queries)
--- 3. Range queries (date ranges, numeric ranges)
--- 4. Join optimization
--- 5. Composite indexes for complex queries
+-- 1. AWS identifier lookups (primary use case)
+-- 2. Account/Region/Environment filtering
+-- 3. Resource state and status queries
+-- 4. Cross-resource relationship joins
+-- 5. Time-based queries (sync, monitoring)
 --
--- NOTE: This template will be customized based on actual schema from Stream A
+-- SCHEMA ANALYZED: Based on migrations 001-006 (VPCs, Subnets, TGWs, CGWs)
 
 -- =============================================================================
 -- PRIMARY KEY AND UNIQUE CONSTRAINTS
 -- =============================================================================
--- Primary keys are automatically indexed, but documenting for completeness
+-- Primary keys (UUIDs) are automatically indexed
+-- Unique AWS identifiers are already indexed in migrations, documenting for completeness
 
--- Example: Network devices table (to be updated with actual schema)
--- ALTER TABLE network_devices ADD PRIMARY KEY (device_id);
--- ALTER TABLE network_devices ADD UNIQUE KEY uk_device_hostname (hostname);
+-- VPCs table
+-- UNIQUE INDEX: awsVpcId (already created in migration)
+
+-- Subnets table  
+-- UNIQUE INDEX: awsSubnetId (already created in migration)
+
+-- Transit Gateways table
+-- UNIQUE INDEX: awsTransitGatewayId (already created in migration)
+
+-- Customer Gateways table
+-- UNIQUE INDEX: awsCustomerGatewayId (already created in migration)
 
 -- =============================================================================
--- SEARCH AND LOOKUP OPTIMIZATION INDEXES
+-- AWS IDENTIFIER LOOKUPS (HIGHEST PRIORITY)
 -- =============================================================================
 
--- Common CMDB search patterns - will be customized based on actual schema
+-- These are the most frequent queries - AWS resource lookups by ID
+-- Already created in migrations, but optimizing with additional covering indexes
 
--- Device/Asset search indexes
--- CREATE INDEX idx_devices_hostname ON network_devices (hostname);
--- CREATE INDEX idx_devices_ip_address ON network_devices (ip_address);
--- CREATE INDEX idx_devices_mac_address ON network_devices (mac_address);
--- CREATE INDEX idx_devices_serial_number ON network_devices (serial_number);
--- CREATE INDEX idx_devices_asset_tag ON network_devices (asset_tag);
+-- VPC lookups with commonly selected fields
+CREATE INDEX idx_vpcs_aws_id_covering ON vpcs (awsVpcId) 
+  INCLUDE (name, cidrBlock, region, state, environment);
 
--- Text search optimization for device names and descriptions
--- CREATE FULLTEXT INDEX ft_devices_search ON network_devices (hostname, description, model);
+-- Subnet lookups with commonly selected fields  
+CREATE INDEX idx_subnets_aws_id_covering ON subnets (awsSubnetId)
+  INCLUDE (awsVpcId, cidrBlock, availabilityZone, state, subnetType);
 
--- Status and type filtering (frequently used in dashboards)
--- CREATE INDEX idx_devices_status ON network_devices (status);
--- CREATE INDEX idx_devices_type ON network_devices (device_type);
--- CREATE INDEX idx_devices_location ON network_devices (location_id);
+-- Transit Gateway lookups with commonly selected fields
+CREATE INDEX idx_tgws_aws_id_covering ON transit_gateways (awsTransitGatewayId)
+  INCLUDE (state, description, defaultRouteTableAssociation, defaultRouteTablePropagation);
+
+-- Customer Gateway lookups with commonly selected fields
+CREATE INDEX idx_cgws_aws_id_covering ON customer_gateways (awsCustomerGatewayId)
+  INCLUDE (state, type, ipAddress, bgpAsn, customerGatewayName);
+
+-- =============================================================================
+-- ACCOUNT AND REGION FILTERING (SECOND PRIORITY)
+-- =============================================================================
+
+-- Multi-tenant queries - filtering by AWS account and region
+-- Already have basic indexes, adding composite indexes for common patterns
+
+-- Account + Region combinations (very common dashboard query)
+CREATE INDEX idx_vpcs_account_region ON vpcs (awsAccountId, region);
+CREATE INDEX idx_subnets_account_region ON subnets (awsAccountId, region);
+CREATE INDEX idx_tgws_account_region ON transit_gateways (awsAccountId, region);
+CREATE INDEX idx_cgws_account_region ON customer_gateways (awsAccountId, region);
+
+-- Region + State combinations (operational dashboards)
+CREATE INDEX idx_vpcs_region_state ON vpcs (region, state);
+CREATE INDEX idx_subnets_region_state ON subnets (region, state);
+CREATE INDEX idx_tgws_region_state ON transit_gateways (region, state);
+CREATE INDEX idx_cgws_region_state ON customer_gateways (region, state);
 
 -- =============================================================================
 -- TEMPORAL DATA OPTIMIZATION
 -- =============================================================================
 
--- Date range queries for monitoring and reporting
--- CREATE INDEX idx_devices_created_at ON network_devices (created_at);
--- CREATE INDEX idx_devices_updated_at ON network_devices (updated_at);
--- CREATE INDEX idx_devices_last_seen ON network_devices (last_seen_at);
+-- Sync and monitoring queries - very important for data freshness
+-- All tables have commonFields: createdAt, updatedAt, lastSyncAt
 
--- Composite index for date range queries with status
--- CREATE INDEX idx_devices_status_updated ON network_devices (status, updated_at);
--- CREATE INDEX idx_devices_type_created ON network_devices (device_type, created_at);
+-- Last sync queries for data freshness monitoring
+CREATE INDEX idx_vpcs_last_sync ON vpcs (lastSyncAt DESC);
+CREATE INDEX idx_subnets_last_sync ON subnets (lastSyncAt DESC); 
+CREATE INDEX idx_tgws_last_sync ON transit_gateways (lastSyncAt DESC);
+CREATE INDEX idx_cgws_last_sync ON customer_gateways (lastSyncAt DESC);
+
+-- Created/Updated date ranges for reporting
+CREATE INDEX idx_vpcs_created_at ON vpcs (createdAt);
+CREATE INDEX idx_subnets_created_at ON subnets (createdAt);
+CREATE INDEX idx_tgws_created_at ON transit_gateways (createdAt);
+CREATE INDEX idx_cgws_created_at ON customer_gateways (createdAt);
+
+-- Composite indexes for sync monitoring with status
+CREATE INDEX idx_vpcs_state_sync ON vpcs (state, lastSyncAt);
+CREATE INDEX idx_subnets_state_sync ON subnets (state, lastSyncAt);
+CREATE INDEX idx_tgws_state_sync ON transit_gateways (state, lastSyncAt);
+CREATE INDEX idx_cgws_state_sync ON customer_gateways (state, lastSyncAt);
 
 -- =============================================================================
 -- RELATIONSHIP AND JOIN OPTIMIZATION
 -- =============================================================================
 
--- Foreign key indexes for efficient joins
--- CREATE INDEX idx_devices_location_id ON network_devices (location_id);
--- CREATE INDEX idx_devices_subnet_id ON network_devices (subnet_id);
--- CREATE INDEX idx_devices_vlan_id ON network_devices (vlan_id);
+-- AWS resource relationships - critical for topology views
 
--- Network topology relationships
--- CREATE INDEX idx_connections_source_device ON network_connections (source_device_id);
--- CREATE INDEX idx_connections_target_device ON network_connections (target_device_id);
--- CREATE INDEX idx_connections_port ON network_connections (source_port, target_port);
+-- Subnet -> VPC relationships (most common join)
+CREATE INDEX idx_subnets_vpc_id ON subnets (vpcId);
+CREATE INDEX idx_subnets_aws_vpc_id ON subnets (awsVpcId);
+
+-- Transit Gateway Attachment relationships
+CREATE INDEX idx_tgw_attachments_tgw_id ON transit_gateway_attachments (transitGatewayId);
+CREATE INDEX idx_tgw_attachments_vpc_id ON transit_gateway_attachments (vpcId);
+CREATE INDEX idx_tgw_attachments_subnet_id ON transit_gateway_attachments (subnetId);
+
+-- Cross-resource AWS ID lookups for topology mapping
+CREATE INDEX idx_tgw_attachments_aws_tgw_id ON transit_gateway_attachments (awsTransitGatewayId);
+CREATE INDEX idx_tgw_attachments_aws_vpc_id ON transit_gateway_attachments (awsVpcId);
+
+-- Customer Gateway connections
+CREATE INDEX idx_cgws_transit_gateway_id ON customer_gateways (transitGatewayId) WHERE transitGatewayId IS NOT NULL;
 
 -- =============================================================================
 -- DASHBOARD AND REPORTING OPTIMIZATION
 -- =============================================================================
 
--- Composite indexes for common dashboard queries
--- CREATE INDEX idx_devices_status_type_location ON network_devices (status, device_type, location_id);
--- CREATE INDEX idx_devices_location_status ON network_devices (location_id, status);
+-- Environment-based filtering (common in enterprise dashboards)
+CREATE INDEX idx_vpcs_environment_state ON vpcs (environment, state) WHERE environment IS NOT NULL;
+CREATE INDEX idx_subnets_environment_state ON subnets (environment, state) WHERE environment IS NOT NULL;
 
--- Aggregation optimization
--- CREATE INDEX idx_devices_type_status ON network_devices (device_type, status);
+-- Project-based filtering for resource ownership dashboards
+CREATE INDEX idx_vpcs_project_environment ON vpcs (project, environment) WHERE project IS NOT NULL;
+CREATE INDEX idx_subnets_project_environment ON subnets (project, environment) WHERE project IS NOT NULL;
+
+-- Resource count aggregations (dashboard statistics)
+CREATE INDEX idx_vpcs_account_env_state ON vpcs (awsAccountId, environment, state);
+CREATE INDEX idx_subnets_account_env_type ON subnets (awsAccountId, environment, subnetType);
+
+-- CIDR block searches (network planning queries)
+CREATE INDEX idx_vpcs_cidr_block ON vpcs (cidrBlock);
+CREATE INDEX idx_subnets_cidr_block ON subnets (cidrBlock);
+
+-- Cost center reporting (if populated)
+CREATE INDEX idx_vpcs_cost_center ON vpcs (costCenter) WHERE costCenter IS NOT NULL;
+CREATE INDEX idx_subnets_cost_center ON subnets (costCenter) WHERE costCenter IS NOT NULL;
 
 -- =============================================================================
 -- PERFORMANCE MONITORING INDEXES
 -- =============================================================================
 
--- Indexes for monitoring data (if separate from main device table)
--- CREATE INDEX idx_monitoring_device_timestamp ON device_monitoring (device_id, timestamp);
--- CREATE INDEX idx_monitoring_metric_name ON device_monitoring (metric_name, timestamp);
+-- Sync version tracking for data consistency monitoring
+CREATE INDEX idx_vpcs_sync_version ON vpcs (syncVersion, lastSyncAt);
+CREATE INDEX idx_subnets_sync_version ON subnets (syncVersion, lastSyncAt);
 
--- Alert and event indexes
--- CREATE INDEX idx_alerts_device_created ON device_alerts (device_id, created_at);
--- CREATE INDEX idx_alerts_severity_status ON device_alerts (severity, status);
+-- Source system tracking (if multiple sync sources)
+CREATE INDEX idx_vpcs_source_system ON vpcs (sourceSystem, lastSyncAt);
+CREATE INDEX idx_subnets_source_system ON subnets (sourceSystem, lastSyncAt);
+
+-- Tag-based queries (JSON field optimization with expression indexes)
+-- Note: These require MySQL 5.7+ with generated columns for optimal performance
+-- CREATE INDEX idx_vpcs_name_tag ON vpcs ((JSON_UNQUOTE(JSON_EXTRACT(tags, '$.Name'))));
+-- CREATE INDEX idx_subnets_name_tag ON subnets ((JSON_UNQUOTE(JSON_EXTRACT(tags, '$.Name'))));
 
 -- =============================================================================
 -- ADVANCED OPTIMIZATION INDEXES
 -- =============================================================================
 
--- Partial indexes for active/online devices (if status-based queries are frequent)
--- CREATE INDEX idx_devices_active ON network_devices (hostname, ip_address) WHERE status = 'active';
--- CREATE INDEX idx_devices_online ON network_devices (device_type, location_id) WHERE status IN ('online', 'active');
+-- Partial indexes for active resources (most queries focus on available/active)
+CREATE INDEX idx_vpcs_available ON vpcs (awsAccountId, region, name) WHERE state = 'available';
+CREATE INDEX idx_subnets_available ON subnets (awsVpcId, availabilityZone) WHERE state = 'available';
+CREATE INDEX idx_tgws_available ON transit_gateways (region, description) WHERE state = 'available';
 
--- Covering indexes for read-heavy operations
--- CREATE INDEX idx_devices_list_covering ON network_devices (device_type, status) 
---   INCLUDE (hostname, ip_address, location_id, updated_at);
+-- Partial indexes for default VPCs (special case handling)
+CREATE INDEX idx_vpcs_default ON vpcs (awsAccountId, region) WHERE isDefault = true;
+
+-- High-selectivity covering indexes for list views
+CREATE INDEX idx_vpcs_list_view ON vpcs (awsAccountId, region, state) 
+  INCLUDE (awsVpcId, name, cidrBlock, environment, lastSyncAt);
+
+CREATE INDEX idx_subnets_list_view ON subnets (awsAccountId, region, state)
+  INCLUDE (awsSubnetId, awsVpcId, cidrBlock, availabilityZone, subnetType, availableIpAddressCount);
 
 -- =============================================================================
 -- INDEX MAINTENANCE PROCEDURES
@@ -204,45 +281,61 @@ ORDER BY OBJECT_NAME, INDEX_NAME;
 -- =============================================================================
 
 /*
-INDEX STRATEGY RATIONALE:
+AWS NETWORK CMDB INDEX STRATEGY RATIONALE:
 
-1. PRIMARY LOOKUPS:
-   - hostname, ip_address, mac_address: Most common search fields
-   - Unique constraints prevent duplicates
-   - Single column indexes for exact matches
+1. AWS IDENTIFIER LOOKUPS (HIGHEST PRIORITY):
+   - awsVpcId, awsSubnetId, awsTransitGatewayId: Most frequent queries
+   - Covering indexes include commonly selected fields
+   - Target: <100ms response time
 
-2. COMPOSITE INDEXES:
-   - status + type + location: Common dashboard filter combination
-   - device_type + created_at: Reporting queries with date ranges
-   - Leftmost prefix principle applied
+2. ACCOUNT/REGION FILTERING:
+   - awsAccountId + region: Critical for multi-tenant environments  
+   - region + state: Operational dashboards and monitoring
+   - Target: <500ms response time
 
-3. FULLTEXT INDEXES:
-   - Enable fast text search across multiple columns
-   - Support for natural language search in descriptions
+3. RELATIONSHIP JOINS:
+   - subnet -> vpc relationships: Primary topology queries
+   - transit gateway attachments: Cross-resource navigation
+   - Foreign key indexes for efficient joins
 
-4. PARTIAL INDEXES:
-   - Focus on active/online devices (most queried subset)
-   - Reduce index size and improve performance
+4. TEMPORAL QUERIES:
+   - lastSyncAt: Data freshness monitoring
+   - createdAt/updatedAt: Historical analysis and reporting
+   - Composite with state for operational queries
 
-5. COVERING INDEXES:
-   - Include frequently selected columns
-   - Reduce need for table lookups
+5. BUSINESS CONTEXT:
+   - environment, project, costCenter: Enterprise filtering
+   - Partial indexes where fields are sparsely populated
+   - Dashboard aggregation optimization
+
+6. ADVANCED OPTIMIZATIONS:
+   - Partial indexes for active/available resources (80% of queries)
+   - Covering indexes for list views reduce table scans
+   - JSON tag extraction for AWS tag-based searches
 
 MAINTENANCE SCHEDULE:
-- Weekly: ANALYZE TABLE on main tables
-- Monthly: Review index usage statistics
-- Quarterly: Evaluate new index opportunities
-- Annually: Full index strategy review
+- Daily: Monitor slow query log for optimization opportunities
+- Weekly: ANALYZE TABLE on main tables (vpcs, subnets, transit_gateways)
+- Monthly: Review index usage statistics and unutilized indexes
+- Quarterly: Evaluate query patterns and add new indexes
+- Semi-annually: Full index strategy review and cleanup
 
-PERFORMANCE TARGETS:
-- Simple lookups: <100ms
-- Complex searches: <500ms  
-- Dashboard queries: <1000ms
-- Reports: <2000ms
+PERFORMANCE TARGETS FOR 100K+ RECORDS:
+- AWS ID lookups: <100ms
+- Account/Region filters: <500ms  
+- Complex joins: <1000ms
+- Dashboard aggregations: <1000ms
+- Full reports: <2000ms
 
 INDEX SIZE MONITORING:
-- Track index size growth
-- Monitor index fragmentation
-- Alert on unused indexes
-- Regular cleanup of obsolete indexes
+- Track index size growth (target: <50% of table size)
+- Monitor index cardinality and selectivity
+- Alert on indexes with low usage (<1% of queries)
+- Regular cleanup of obsolete indexes from schema changes
+
+AWS-SPECIFIC OPTIMIZATIONS:
+- Prioritize state='available' resources (active infrastructure)
+- Optimize for multi-region, multi-account queries
+- Support CIDR block searches for network planning
+- Enable fast topology traversal across resource relationships
 */
