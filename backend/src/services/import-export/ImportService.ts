@@ -366,12 +366,23 @@ export class ImportService extends EventEmitter {
             errors.push({ record, errors: result.errors });
           }
         } else if (options.mode === 'update') {
-          // Implementation depends on having an identifier
-          // This is a simplified version
-          errors.push({ record, errors: [{ message: 'Update mode not implemented' }] });
+          const result = await this.updateRecord(service, record, options);
+          if (result.success) {
+            updated++;
+          } else {
+            errors.push({ record, errors: result.errors || [{ message: result.error }] });
+          }
         } else if (options.mode === 'upsert') {
-          // Try to find existing record, then create or update
-          errors.push({ record, errors: [{ message: 'Upsert mode not implemented' }] });
+          const result = await this.upsertRecord(service, record, options);
+          if (result.success) {
+            if (result.operation === 'create') {
+              created++;
+            } else {
+              updated++;
+            }
+          } else {
+            errors.push({ record, errors: result.errors || [{ message: result.error }] });
+          }
         }
 
         if (!options.continueOnError && errors.length > 0) {
@@ -387,6 +398,149 @@ export class ImportService extends EventEmitter {
     }
 
     return { created, updated, errors };
+  }
+
+  /**
+   * Update a single record
+   */
+  private async updateRecord(
+    service: any,
+    record: any,
+    options: ImportOptions
+  ): Promise<{ success: boolean; operation: 'update'; errors?: any[]; error?: string }> {
+    try {
+      // Apply field mapping if configured
+      const mappedRecord = this.applyFieldMapping(record, options.fieldMapping);
+      
+      // Get the ID field for the resource type
+      const idField = this.getIdFieldForResourceType(options.resourceType);
+      const id = mappedRecord[idField];
+      
+      if (!id) {
+        return {
+          success: false,
+          operation: 'update',
+          error: `Update operation requires ${idField} field`
+        };
+      }
+
+      // Check if record exists
+      const existing = await service.findById(id);
+      if (!existing) {
+        return {
+          success: false,
+          operation: 'update',
+          error: `Record with ${idField} '${id}' not found`
+        };
+      }
+
+      // Perform update
+      const result = await service.update(id, mappedRecord, options.userId);
+      return {
+        success: result.success,
+        operation: 'update',
+        errors: result.errors
+      };
+
+    } catch (error) {
+      return {
+        success: false,
+        operation: 'update',
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Upsert a single record (update if exists, create if not)
+   */
+  private async upsertRecord(
+    service: any,
+    record: any,
+    options: ImportOptions
+  ): Promise<{ success: boolean; operation: 'create' | 'update'; errors?: any[]; error?: string }> {
+    try {
+      // Apply field mapping if configured
+      const mappedRecord = this.applyFieldMapping(record, options.fieldMapping);
+      
+      // Get the ID field for the resource type
+      const idField = this.getIdFieldForResourceType(options.resourceType);
+      const id = mappedRecord[idField];
+      
+      if (!id) {
+        // No ID provided, create new record
+        const result = await service.create(mappedRecord, options.userId);
+        return {
+          success: result.success,
+          operation: 'create',
+          errors: result.errors
+        };
+      }
+
+      try {
+        // Try to find existing record
+        const existing = await service.findById(id);
+        
+        if (existing) {
+          // Record exists, update it
+          const result = await service.update(id, mappedRecord, options.userId);
+          return {
+            success: result.success,
+            operation: 'update',
+            errors: result.errors
+          };
+        }
+      } catch (findError) {
+        // Record doesn't exist or error finding it, create new one
+      }
+
+      // Record doesn't exist, create new one
+      const result = await service.create(mappedRecord, options.userId);
+      return {
+        success: result.success,
+        operation: 'create',
+        errors: result.errors
+      };
+
+    } catch (error) {
+      return {
+        success: false,
+        operation: 'create',
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Apply field mapping to a record
+   */
+  private applyFieldMapping(record: any, fieldMapping?: Record<string, string>): any {
+    if (!fieldMapping) {
+      return record;
+    }
+
+    const mappedRecord: any = {};
+    
+    Object.keys(record).forEach(sourceField => {
+      const targetField = fieldMapping[sourceField] || sourceField;
+      mappedRecord[targetField] = record[sourceField];
+    });
+
+    return mappedRecord;
+  }
+
+  /**
+   * Get the ID field name for a resource type
+   */
+  private getIdFieldForResourceType(resourceType: string): string {
+    const idFields: Record<string, string> = {
+      'vpc': 'vpcId',
+      'transitGateway': 'transitGatewayId',
+      'customerGateway': 'customerGatewayId',
+      'vpcEndpoint': 'vpcEndpointId'
+    };
+
+    return idFields[resourceType] || 'id';
   }
 
   /**

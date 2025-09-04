@@ -42,11 +42,33 @@ export interface ExportResult {
   };
 }
 
+// Advanced filtering options
+export interface FilterCondition {
+  field: string;
+  operator: 'equals' | 'not_equals' | 'contains' | 'not_contains' | 'starts_with' | 'ends_with' | 
+           'greater_than' | 'less_than' | 'greater_than_or_equal' | 'less_than_or_equal' |
+           'in' | 'not_in' | 'is_null' | 'is_not_null' | 'between' | 'regex';
+  value?: any;
+  values?: any[]; // for 'in', 'not_in' operators
+  caseSensitive?: boolean;
+}
+
+export interface AdvancedFilters {
+  conditions: FilterCondition[];
+  logic: 'AND' | 'OR';
+  groups?: {
+    conditions: FilterCondition[];
+    logic: 'AND' | 'OR';
+  }[];
+}
+
 export interface ExportOptions {
   format: FileFormat;
   resourceType: 'vpc' | 'transitGateway' | 'customerGateway' | 'vpcEndpoint' | 'all';
   fields?: string[];
-  filters?: any;
+  fieldOrder?: string[];
+  filters?: any; // Legacy simple filters
+  advancedFilters?: AdvancedFilters; // New advanced filtering
   includeHeaders?: boolean;
   includeMetadata?: boolean;
   batchSize?: number;
@@ -58,8 +80,28 @@ export interface ExportOptions {
   dateRange?: {
     startDate?: Date;
     endDate?: Date;
+    field?: string; // Which date field to filter on
   };
   customFieldMappings?: Record<string, string>;
+  // Custom field transformations
+  fieldTransformations?: Record<string, (value: any) => any>;
+  // Sorting options
+  sortBy?: {
+    field: string;
+    direction: 'asc' | 'desc';
+  }[];
+  // Aggregation options
+  aggregations?: {
+    groupBy?: string[];
+    functions?: {
+      field: string;
+      function: 'count' | 'sum' | 'avg' | 'min' | 'max';
+      alias?: string;
+    }[];
+  };
+  // Template-based export
+  templateId?: string;
+  templateConfig?: any;
 }
 
 export class ExportService extends EventEmitter {
@@ -237,7 +279,10 @@ export class ExportService extends EventEmitter {
    * Fetch data for export
    */
   private async fetchExportData(options: ExportOptions): Promise<any[]> {
-    const allData: any[] = [];
+    let allData: any[] = [];
+
+    // Build filters for database query
+    const dbFilters = this.buildDatabaseFilters(options);
 
     if (options.resourceType === 'all') {
       // Export all resource types
@@ -247,7 +292,8 @@ export class ExportService extends EventEmitter {
         const service = this.getServiceForResourceType(resourceType);
         const result = await service.findAll({
           limit: 10000, // Large limit for export
-          filters: options.filters
+          filters: dbFilters,
+          includeDeleted: options.includeDeleted
         });
 
         if (result.success && result.data) {
@@ -269,7 +315,8 @@ export class ExportService extends EventEmitter {
         const result = await service.findAll({
           page,
           limit,
-          filters: options.filters
+          filters: dbFilters,
+          includeDeleted: options.includeDeleted
         });
 
         if (result.success && result.data) {
@@ -282,7 +329,377 @@ export class ExportService extends EventEmitter {
       }
     }
 
+    // Apply advanced client-side filtering if needed
+    if (options.advancedFilters) {
+      allData = this.applyAdvancedFilters(allData, options.advancedFilters);
+    }
+
+    // Apply date range filtering
+    if (options.dateRange && (options.dateRange.startDate || options.dateRange.endDate)) {
+      allData = this.applyDateRangeFilter(allData, options.dateRange);
+    }
+
+    // Apply sorting
+    if (options.sortBy && options.sortBy.length > 0) {
+      allData = this.applySorting(allData, options.sortBy);
+    }
+
+    // Apply aggregations if specified
+    if (options.aggregations) {
+      allData = this.applyAggregations(allData, options.aggregations);
+    }
+
     return allData;
+  }
+
+  /**
+   * Build database filters from options
+   */
+  private buildDatabaseFilters(options: ExportOptions): any {
+    const filters: any = { ...options.filters };
+
+    // Convert some advanced filters to database filters for efficiency
+    if (options.advancedFilters) {
+      options.advancedFilters.conditions.forEach(condition => {
+        if (this.canConvertToDatabaseFilter(condition)) {
+          filters[condition.field] = this.convertToDatabaseFilter(condition);
+        }
+      });
+    }
+
+    return filters;
+  }
+
+  /**
+   * Check if a condition can be converted to database filter
+   */
+  private canConvertToDatabaseFilter(condition: FilterCondition): boolean {
+    // Simple operators that can be handled by the database
+    const dbSupportedOperators = ['equals', 'not_equals', 'greater_than', 'less_than', 
+                                  'greater_than_or_equal', 'less_than_or_equal', 'in', 'not_in'];
+    return dbSupportedOperators.includes(condition.operator);
+  }
+
+  /**
+   * Convert condition to database filter format
+   */
+  private convertToDatabaseFilter(condition: FilterCondition): any {
+    switch (condition.operator) {
+      case 'equals':
+        return condition.value;
+      case 'not_equals':
+        return { $ne: condition.value };
+      case 'greater_than':
+        return { $gt: condition.value };
+      case 'less_than':
+        return { $lt: condition.value };
+      case 'greater_than_or_equal':
+        return { $gte: condition.value };
+      case 'less_than_or_equal':
+        return { $lte: condition.value };
+      case 'in':
+        return { $in: condition.values };
+      case 'not_in':
+        return { $nin: condition.values };
+      default:
+        return condition.value;
+    }
+  }
+
+  /**
+   * Apply advanced filters to data
+   */
+  private applyAdvancedFilters(data: any[], filters: AdvancedFilters): any[] {
+    return data.filter(record => this.evaluateFilters(record, filters));
+  }
+
+  /**
+   * Evaluate filters against a record
+   */
+  private evaluateFilters(record: any, filters: AdvancedFilters): boolean {
+    const conditionResults = filters.conditions.map(condition => 
+      this.evaluateCondition(record, condition)
+    );
+
+    let mainResult = filters.logic === 'AND' 
+      ? conditionResults.every(result => result)
+      : conditionResults.some(result => result);
+
+    // Evaluate groups if present
+    if (filters.groups && filters.groups.length > 0) {
+      const groupResults = filters.groups.map(group => {
+        const groupConditionResults = group.conditions.map(condition =>
+          this.evaluateCondition(record, condition)
+        );
+        
+        return group.logic === 'AND'
+          ? groupConditionResults.every(result => result)
+          : groupConditionResults.some(result => result);
+      });
+
+      // Combine main conditions with group results using AND
+      mainResult = mainResult && groupResults.every(result => result);
+    }
+
+    return mainResult;
+  }
+
+  /**
+   * Evaluate a single condition against a record
+   */
+  private evaluateCondition(record: any, condition: FilterCondition): boolean {
+    const fieldValue = this.getNestedFieldValue(record, condition.field);
+    const { operator, value, values, caseSensitive = true } = condition;
+
+    switch (operator) {
+      case 'equals':
+        return this.compareValues(fieldValue, value, caseSensitive, (a, b) => a === b);
+      
+      case 'not_equals':
+        return this.compareValues(fieldValue, value, caseSensitive, (a, b) => a !== b);
+      
+      case 'contains':
+        return this.stringContains(fieldValue, value, caseSensitive);
+      
+      case 'not_contains':
+        return !this.stringContains(fieldValue, value, caseSensitive);
+      
+      case 'starts_with':
+        return this.stringStartsWith(fieldValue, value, caseSensitive);
+      
+      case 'ends_with':
+        return this.stringEndsWith(fieldValue, value, caseSensitive);
+      
+      case 'greater_than':
+        return fieldValue > value;
+      
+      case 'less_than':
+        return fieldValue < value;
+      
+      case 'greater_than_or_equal':
+        return fieldValue >= value;
+      
+      case 'less_than_or_equal':
+        return fieldValue <= value;
+      
+      case 'in':
+        return values ? values.includes(fieldValue) : false;
+      
+      case 'not_in':
+        return values ? !values.includes(fieldValue) : true;
+      
+      case 'is_null':
+        return fieldValue == null;
+      
+      case 'is_not_null':
+        return fieldValue != null;
+      
+      case 'between':
+        return Array.isArray(value) && value.length >= 2 
+          ? fieldValue >= value[0] && fieldValue <= value[1]
+          : false;
+      
+      case 'regex':
+        try {
+          const regex = new RegExp(value, caseSensitive ? '' : 'i');
+          return regex.test(String(fieldValue || ''));
+        } catch {
+          return false;
+        }
+      
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * Get nested field value from record
+   */
+  private getNestedFieldValue(record: any, field: string): any {
+    return field.split('.').reduce((obj, key) => obj?.[key], record);
+  }
+
+  /**
+   * Compare values with case sensitivity option
+   */
+  private compareValues(a: any, b: any, caseSensitive: boolean, compareFn: (a: any, b: any) => boolean): boolean {
+    if (!caseSensitive && typeof a === 'string' && typeof b === 'string') {
+      return compareFn(a.toLowerCase(), b.toLowerCase());
+    }
+    return compareFn(a, b);
+  }
+
+  /**
+   * Check if string contains value
+   */
+  private stringContains(str: any, value: any, caseSensitive: boolean): boolean {
+    const strVal = String(str || '');
+    const searchVal = String(value || '');
+    
+    if (!caseSensitive) {
+      return strVal.toLowerCase().includes(searchVal.toLowerCase());
+    }
+    return strVal.includes(searchVal);
+  }
+
+  /**
+   * Check if string starts with value
+   */
+  private stringStartsWith(str: any, value: any, caseSensitive: boolean): boolean {
+    const strVal = String(str || '');
+    const searchVal = String(value || '');
+    
+    if (!caseSensitive) {
+      return strVal.toLowerCase().startsWith(searchVal.toLowerCase());
+    }
+    return strVal.startsWith(searchVal);
+  }
+
+  /**
+   * Check if string ends with value
+   */
+  private stringEndsWith(str: any, value: any, caseSensitive: boolean): boolean {
+    const strVal = String(str || '');
+    const searchVal = String(value || '');
+    
+    if (!caseSensitive) {
+      return strVal.toLowerCase().endsWith(searchVal.toLowerCase());
+    }
+    return strVal.endsWith(searchVal);
+  }
+
+  /**
+   * Apply date range filter
+   */
+  private applyDateRangeFilter(data: any[], dateRange: { startDate?: Date; endDate?: Date; field?: string }): any[] {
+    const dateField = dateRange.field || 'createdAt';
+    
+    return data.filter(record => {
+      const recordDate = new Date(record[dateField]);
+      
+      if (isNaN(recordDate.getTime())) {
+        return false; // Invalid date
+      }
+
+      if (dateRange.startDate && recordDate < dateRange.startDate) {
+        return false;
+      }
+
+      if (dateRange.endDate && recordDate > dateRange.endDate) {
+        return false;
+      }
+
+      return true;
+    });
+  }
+
+  /**
+   * Apply sorting to data
+   */
+  private applySorting(data: any[], sortBy: { field: string; direction: 'asc' | 'desc' }[]): any[] {
+    return data.sort((a, b) => {
+      for (const sort of sortBy) {
+        const aVal = this.getNestedFieldValue(a, sort.field);
+        const bVal = this.getNestedFieldValue(b, sort.field);
+        
+        let comparison = 0;
+        
+        if (aVal < bVal) comparison = -1;
+        else if (aVal > bVal) comparison = 1;
+        
+        if (comparison !== 0) {
+          return sort.direction === 'asc' ? comparison : -comparison;
+        }
+      }
+      
+      return 0;
+    });
+  }
+
+  /**
+   * Apply aggregations to data
+   */
+  private applyAggregations(data: any[], aggregations: { groupBy?: string[]; functions?: { field: string; function: 'count' | 'sum' | 'avg' | 'min' | 'max'; alias?: string; }[]; }): any[] {
+    if (!aggregations.groupBy || aggregations.groupBy.length === 0) {
+      // Global aggregation
+      if (!aggregations.functions || aggregations.functions.length === 0) {
+        return data;
+      }
+
+      const result: any = {};
+      
+      aggregations.functions.forEach(func => {
+        const alias = func.alias || `${func.function}_${func.field}`;
+        result[alias] = this.calculateAggregateFunction(data, func.field, func.function);
+      });
+
+      return [result];
+    }
+
+    // Group by aggregation
+    const groups = new Map<string, any[]>();
+    
+    data.forEach(record => {
+      const groupKey = aggregations.groupBy!.map(field => 
+        this.getNestedFieldValue(record, field)
+      ).join('|');
+      
+      if (!groups.has(groupKey)) {
+        groups.set(groupKey, []);
+      }
+      groups.get(groupKey)!.push(record);
+    });
+
+    const aggregatedData: any[] = [];
+    
+    groups.forEach((groupData, groupKey) => {
+      const result: any = {};
+      
+      // Add group by fields
+      const groupValues = groupKey.split('|');
+      aggregations.groupBy!.forEach((field, index) => {
+        result[field] = groupValues[index];
+      });
+
+      // Add aggregate functions
+      if (aggregations.functions) {
+        aggregations.functions.forEach(func => {
+          const alias = func.alias || `${func.function}_${func.field}`;
+          result[alias] = this.calculateAggregateFunction(groupData, func.field, func.function);
+        });
+      }
+
+      aggregatedData.push(result);
+    });
+
+    return aggregatedData;
+  }
+
+  /**
+   * Calculate aggregate function
+   */
+  private calculateAggregateFunction(data: any[], field: string, func: 'count' | 'sum' | 'avg' | 'min' | 'max'): any {
+    const values = data.map(record => this.getNestedFieldValue(record, field)).filter(val => val != null);
+    
+    switch (func) {
+      case 'count':
+        return values.length;
+      
+      case 'sum':
+        return values.reduce((sum, val) => sum + (Number(val) || 0), 0);
+      
+      case 'avg':
+        return values.length > 0 ? values.reduce((sum, val) => sum + (Number(val) || 0), 0) / values.length : 0;
+      
+      case 'min':
+        return values.length > 0 ? Math.min(...values.map(val => Number(val) || 0)) : null;
+      
+      case 'max':
+        return values.length > 0 ? Math.max(...values.map(val => Number(val) || 0)) : null;
+      
+      default:
+        return null;
+    }
   }
 
   /**
@@ -290,28 +707,82 @@ export class ExportService extends EventEmitter {
    */
   private async processBatch(records: any[], options: ExportOptions): Promise<any[]> {
     return records.map(record => {
-      // Apply field selection if specified
-      if (options.fields && options.fields.length > 0) {
-        const filteredRecord: any = {};
-        options.fields.forEach(field => {
-          if (record[field] !== undefined) {
-            filteredRecord[field] = record[field];
+      let processedRecord = { ...record };
+
+      // Apply field transformations first
+      if (options.fieldTransformations) {
+        Object.entries(options.fieldTransformations).forEach(([field, transform]) => {
+          if (processedRecord[field] !== undefined) {
+            try {
+              processedRecord[field] = transform(processedRecord[field]);
+            } catch (error) {
+              console.warn(`Field transformation failed for ${field}:`, error);
+            }
           }
         });
-        return filteredRecord;
       }
 
-      // Apply custom field mappings if specified
+      // Apply custom field mappings
       if (options.customFieldMappings) {
         const mappedRecord: any = {};
-        Object.entries(record).forEach(([key, value]) => {
+        Object.entries(processedRecord).forEach(([key, value]) => {
           const mappedKey = options.customFieldMappings![key] || key;
           mappedRecord[mappedKey] = value;
         });
-        return mappedRecord;
+        processedRecord = mappedRecord;
       }
 
-      return record;
+      // Apply field selection and ordering
+      if (options.fields && options.fields.length > 0) {
+        const orderedRecord: any = {};
+        
+        // Use fieldOrder if specified, otherwise use fields order
+        const fieldOrder = options.fieldOrder || options.fields;
+        
+        fieldOrder.forEach(field => {
+          if (processedRecord[field] !== undefined) {
+            orderedRecord[field] = processedRecord[field];
+          }
+        });
+        
+        // Add any remaining fields not in the order specification
+        Object.keys(processedRecord).forEach(key => {
+          if (!fieldOrder.includes(key) && options.fields!.includes(key)) {
+            orderedRecord[key] = processedRecord[key];
+          }
+        });
+        
+        processedRecord = orderedRecord;
+      } else if (options.fieldOrder) {
+        // Apply field ordering without filtering
+        const orderedRecord: any = {};
+        
+        options.fieldOrder.forEach(field => {
+          if (processedRecord[field] !== undefined) {
+            orderedRecord[field] = processedRecord[field];
+          }
+        });
+        
+        // Add any remaining fields
+        Object.keys(processedRecord).forEach(key => {
+          if (!options.fieldOrder!.includes(key)) {
+            orderedRecord[key] = processedRecord[key];
+          }
+        });
+        
+        processedRecord = orderedRecord;
+      }
+
+      // Add audit info if requested
+      if (options.includeAuditInfo) {
+        processedRecord._auditInfo = {
+          exportedAt: new Date().toISOString(),
+          exportedBy: options.userId,
+          originalId: record.id
+        };
+      }
+
+      return processedRecord;
     });
   }
 
