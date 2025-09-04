@@ -4,9 +4,14 @@ const sequelize = getDatabase();
 import User from './User';
 import Role from './Role';
 import Permission from './Permission';
+import Script from './Script';
+import ScriptExecution from './ScriptExecution';
+import ScriptParameter from './ScriptParameter';
+import ScriptSchedule from './ScriptSchedule';
 
 // Import associations to ensure they are set up
 import './associations';
+import './script-associations';
 
 /**
  * Database models index
@@ -14,7 +19,7 @@ import './associations';
  */
 
 // Export all models
-export { User, Role, Permission };
+export { User, Role, Permission, Script, ScriptExecution, ScriptParameter, ScriptSchedule };
 
 // Export database instance
 export { sequelize };
@@ -33,6 +38,15 @@ export {
   assignPermissionToRole,
   removePermissionFromRole
 } from './associations';
+
+// Export script-related utility functions
+export {
+  userCanExecuteScript,
+  getUserAccessibleScripts,
+  getUserExecutionHistory,
+  getUserActiveSchedules,
+  getUserScriptStats
+} from './script-associations';
 
 /**
  * Initialize database and sync models
@@ -58,7 +72,7 @@ export async function initializeModels(options: {
       console.log('Database models synchronized successfully.');
     }
 
-    console.log('Authentication models initialized successfully.');
+    console.log('All models initialized successfully.');
   } catch (error) {
     console.error('Unable to initialize database models:', error);
     throw error;
@@ -84,7 +98,7 @@ export async function closeDatabaseConnection(): Promise<void> {
 export async function validateModels(): Promise<boolean> {
   try {
     // Check if all models are properly defined
-    const models = [User, Role, Permission];
+    const models = [User, Role, Permission, Script, ScriptExecution, ScriptParameter, ScriptSchedule];
     
     for (const model of models) {
       if (!model.tableName) {
@@ -96,8 +110,12 @@ export async function validateModels(): Promise<boolean> {
     await User.count();
     await Role.count();
     await Permission.count();
+    await Script.count();
+    await ScriptExecution.count();
+    await ScriptParameter.count();
+    await ScriptSchedule.count();
 
-    console.log('All authentication models validated successfully.');
+    console.log('All models validated successfully.');
     return true;
   } catch (error) {
     console.error('Model validation failed:', error);
@@ -114,14 +132,22 @@ export async function getModelStats(): Promise<{
   permissions: number;
   userRoles: number;
   rolePermissions: number;
+  scripts: number;
+  scriptExecutions: number;
+  scriptParameters: number;
+  scriptSchedules: number;
 }> {
   try {
-    const [users, roles, permissions, userRoles, rolePermissions] = await Promise.all([
+    const [users, roles, permissions, userRoles, rolePermissions, scripts, scriptExecutions, scriptParameters, scriptSchedules] = await Promise.all([
       User.count({ where: { deletedAt: null } }),
       Role.count({ where: { deletedAt: null } }),
       Permission.count({ where: { deletedAt: null } }),
       sequelize.models.user_roles?.count() || 0,
-      sequelize.models.role_permissions?.count() || 0
+      sequelize.models.role_permissions?.count() || 0,
+      Script.count({ where: { deletedAt: null } }),
+      ScriptExecution.count(),
+      ScriptParameter.count(),
+      ScriptSchedule.count({ where: { deletedAt: null } })
     ]);
 
     return {
@@ -129,7 +155,11 @@ export async function getModelStats(): Promise<{
       roles,
       permissions,
       userRoles,
-      rolePermissions
+      rolePermissions,
+      scripts,
+      scriptExecutions,
+      scriptParameters,
+      scriptSchedules
     };
   } catch (error) {
     console.error('Error getting model statistics:', error);
@@ -154,8 +184,8 @@ export async function seedSystemData(): Promise<void> {
 
     // This would typically be handled by migrations,
     // but providing a programmatic way as well
-    console.log('System data seeding should be handled by migrations (007 and 008).');
-    console.log('Run migrations to create initial system roles and permissions.');
+    console.log('System data seeding should be handled by migrations (008 and 009).');
+    console.log('Run migrations to create initial system roles, permissions, and script templates.');
   } catch (error) {
     console.error('Error seeding system data:', error);
     throw error;
@@ -167,6 +197,10 @@ export default {
   User,
   Role,
   Permission,
+  Script,
+  ScriptExecution,
+  ScriptParameter,
+  ScriptSchedule,
   sequelize,
   initializeModels,
   closeDatabaseConnection,
