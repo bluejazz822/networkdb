@@ -16,10 +16,18 @@ export { JsonProcessor } from './json-processor';
 
 // Factory and Utilities
 export { FileProcessorFactory } from './file-processor-factory';
+export type { StreamingProcessingOptions, StreamingProcessingResult } from './file-processor-factory';
 export { FileValidator, FileFormatDetector } from './file-validator';
 
-// Convenience re-exports for common usage patterns
-export { FileFormat } from './types';
+// Import types for internal use
+import { 
+  FileFormat, 
+  FileMetadata, 
+  FileProcessingOptions, 
+  FieldDefinition 
+} from './types';
+import { FileProcessorFactory } from './file-processor-factory';
+import type { StreamingProcessingOptions } from './file-processor-factory';
 
 /**
  * Create a file processor factory instance
@@ -48,8 +56,8 @@ export function createProcessor(format: FileFormat) {
  */
 export async function validateFileBuffer(
   buffer: Buffer,
-  metadata: import('./types').FileMetadata,
-  options?: import('./types').FileProcessingOptions
+  metadata: FileMetadata,
+  options?: FileProcessingOptions
 ) {
   const factory = new FileProcessorFactory();
   return await factory.validateFile(buffer, metadata, undefined, options);
@@ -64,8 +72,8 @@ export async function validateFileBuffer(
  */
 export async function processFileBuffer(
   buffer: Buffer,
-  metadata: import('./types').FileMetadata,
-  options?: import('./types').FileProcessingOptions
+  metadata: FileMetadata,
+  options?: FileProcessingOptions
 ) {
   const factory = new FileProcessorFactory();
   return await factory.processFile(buffer, metadata, options);
@@ -80,8 +88,8 @@ export async function processFileBuffer(
  */
 export function createStreamProcessor(
   source: import('stream').Readable,
-  metadata: import('./types').FileMetadata,
-  options?: import('./file-processor-factory').StreamingProcessingOptions
+  metadata: FileMetadata,
+  options?: StreamingProcessingOptions
 ) {
   const factory = new FileProcessorFactory();
   return factory.createStreamingProcessor(source, metadata, options);
@@ -96,8 +104,8 @@ export function createStreamProcessor(
  */
 export async function generateTemplate(
   format: FileFormat,
-  fields?: import('./types').FieldDefinition[],
-  options?: import('./types').FileProcessingOptions
+  fields?: FieldDefinition[],
+  options?: FileProcessingOptions
 ) {
   const factory = new FileProcessorFactory();
   return await factory.generateTemplate(format, fields, options);
@@ -107,7 +115,7 @@ export async function generateTemplate(
  * Default field definitions for network devices
  * Commonly used field definitions that can be extended
  */
-export const defaultNetworkDeviceFields: import('./types').FieldDefinition[] = [
+export const defaultNetworkDeviceFields: FieldDefinition[] = [
   {
     name: 'hostname',
     type: 'string',
@@ -210,7 +218,7 @@ export const defaultNetworkDeviceFields: import('./types').FieldDefinition[] = [
 /**
  * Common file processing options with sensible defaults
  */
-export const defaultProcessingOptions: import('./types').FileProcessingOptions = {
+export const defaultProcessingOptions: FileProcessingOptions = {
   format: FileFormat.CSV, // Default to CSV
   encoding: 'utf8',
   skipValidation: false,
@@ -222,7 +230,7 @@ export const defaultProcessingOptions: import('./types').FileProcessingOptions =
 /**
  * Streaming processing options with sensible defaults for large files
  */
-export const defaultStreamingOptions: import('./file-processor-factory').StreamingProcessingOptions = {
+export const defaultStreamingOptions: StreamingProcessingOptions = {
   ...defaultProcessingOptions,
   enableStreaming: true,
   progressInterval: 1000, // Update every 1000 records

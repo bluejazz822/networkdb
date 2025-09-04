@@ -3,7 +3,7 @@
  * Provides common functionality for all file processors
  */
 
-import { detect } from 'jschardet';
+const jschardet = require('jschardet');
 import {
   FileMetadata,
   FileProcessingOptions,
@@ -93,7 +93,7 @@ export abstract class BaseFileProcessor {
       const sampleSize = Math.min(buffer.length, 64 * 1024);
       const sample = buffer.subarray(0, sampleSize);
       
-      const detection = detect(sample);
+      const detection = jschardet.detect(sample);
       
       if (!detection || detection.confidence < 0.5) {
         // Default to UTF-8 if confidence is low

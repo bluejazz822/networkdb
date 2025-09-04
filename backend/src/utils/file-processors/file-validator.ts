@@ -4,7 +4,7 @@
  */
 
 import { createHash } from 'crypto';
-import { detect } from 'jschardet';
+const jschardet = require('jschardet');
 import { FileMetadata, FileProcessingOptions, ValidationError, FileFormat } from './types';
 
 export class FileValidator {
@@ -130,7 +130,7 @@ export class FileValidator {
     try {
       const sampleSize = Math.min(buffer.length, 64 * 1024);
       const sample = buffer.subarray(0, sampleSize);
-      const detection = detect(sample);
+      const detection = jschardet.detect(sample);
 
       if (!detection) {
         errors.push({
