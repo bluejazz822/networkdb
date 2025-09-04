@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Layout, Menu, Typography, Avatar, Dropdown, Space } from 'antd'
+import React, { useEffect } from 'react'
+import { Layout, Menu, Typography, Avatar, Dropdown, Space, Breadcrumb } from 'antd'
 import {
   DashboardOutlined,
   GlobalOutlined,
@@ -13,9 +13,10 @@ import {
   LogoutOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { useAppStore } from '@/store/useAppStore'
 import type { MenuProps } from 'antd'
 
-const { Header, Sider } = Layout
+const { Header, Sider, Content } = Layout
 const { Title } = Typography
 
 interface MainLayoutProps {
@@ -23,9 +24,34 @@ interface MainLayoutProps {
 }
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
-  const [collapsed, setCollapsed] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
+  const { 
+    sidebarCollapsed, 
+    toggleSidebar, 
+    currentPage, 
+    setCurrentPage,
+    breadcrumbs,
+    setBreadcrumbs 
+  } = useAppStore()
+
+  // Page configuration for breadcrumbs and titles
+  const pageConfig = {
+    '/dashboard': { title: 'Dashboard', breadcrumbs: [{ title: 'Dashboard' }] },
+    '/devices': { title: 'Network Devices', breadcrumbs: [{ title: 'Dashboard', path: '/dashboard' }, { title: 'Network Devices' }] },
+    '/vpcs': { title: 'VPCs', breadcrumbs: [{ title: 'Dashboard', path: '/dashboard' }, { title: 'VPCs' }] },
+    '/subnets': { title: 'Subnets', breadcrumbs: [{ title: 'Dashboard', path: '/dashboard' }, { title: 'Subnets' }] },
+    '/transit-gateways': { title: 'Transit Gateways', breadcrumbs: [{ title: 'Dashboard', path: '/dashboard' }, { title: 'Transit Gateways' }] },
+  }
+
+  // Update page title and breadcrumbs when route changes
+  useEffect(() => {
+    const config = pageConfig[location.pathname as keyof typeof pageConfig]
+    if (config) {
+      setCurrentPage(config.title)
+      setBreadcrumbs(config.breadcrumbs)
+    }
+  }, [location.pathname, setCurrentPage, setBreadcrumbs])
 
   const menuItems = [
     {
@@ -96,7 +122,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       <Sider 
         trigger={null} 
         collapsible 
-        collapsed={collapsed}
+        collapsed={sidebarCollapsed}
         style={{
           position: 'fixed',
           left: 0,
@@ -115,7 +141,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           fontWeight: 600,
           borderBottom: '1px solid #001529',
         }}>
-          {collapsed ? 'CMDB' : 'Network CMDB'}
+          {sidebarCollapsed ? 'CMDB' : 'Network CMDB'}
         </div>
         <Menu
           theme="dark"
@@ -127,7 +153,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         />
       </Sider>
       
-      <Layout style={{ marginLeft: collapsed ? 80 : 200, transition: 'margin-left 0.2s' }}>
+      <Layout style={{ marginLeft: sidebarCollapsed ? 80 : 200, transition: 'margin-left 0.2s' }}>
         <Header style={{
           background: '#001529',
           color: '#fff',
@@ -137,18 +163,18 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           position: 'fixed',
           top: 0,
           right: 0,
-          left: collapsed ? 80 : 200,
+          left: sidebarCollapsed ? 80 : 200,
           zIndex: 1000,
           transition: 'left 0.2s',
         }}>
           <Space align="center">
-            {React.createElement(collapsed ? MenuUnfoldOutlined : MenuFoldOutlined, {
+            {React.createElement(sidebarCollapsed ? MenuUnfoldOutlined : MenuFoldOutlined, {
               className: 'trigger',
-              onClick: () => setCollapsed(!collapsed),
+              onClick: toggleSidebar,
               style: { fontSize: '18px', cursor: 'pointer', padding: '0 12px' },
             })}
             <Title level={4} style={{ color: '#fff', margin: 0 }}>
-              Network Configuration Management Database
+              {currentPage}
             </Title>
           </Space>
           
@@ -164,7 +190,28 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         </Header>
         
         <Layout style={{ marginTop: 64, minHeight: 'calc(100vh - 64px)' }}>
-          {children}
+          <Content style={{ margin: '16px', background: '#fff', borderRadius: 6 }}>
+            {breadcrumbs.length > 1 && (
+              <div style={{ padding: '12px 24px', borderBottom: '1px solid #f0f0f0' }}>
+                <Breadcrumb>
+                  {breadcrumbs.map((crumb, index) => (
+                    <Breadcrumb.Item 
+                      key={index}
+                      {...(crumb.path && { 
+                        onClick: () => navigate(crumb.path),
+                        style: { cursor: 'pointer' }
+                      })}
+                    >
+                      {crumb.title}
+                    </Breadcrumb.Item>
+                  ))}
+                </Breadcrumb>
+              </div>
+            )}
+            <div style={{ padding: '24px' }}>
+              {children}
+            </div>
+          </Content>
         </Layout>
       </Layout>
     </>
