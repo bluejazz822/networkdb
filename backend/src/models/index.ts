@@ -9,6 +9,12 @@ import ScriptExecution from './ScriptExecution';
 import ScriptParameter from './ScriptParameter';
 import ScriptSchedule from './ScriptSchedule';
 
+// Network resource models
+import Vpc from './Vpc';
+import TransitGateway from './TransitGateway';
+import CustomerGateway from './CustomerGateway';
+import VpcEndpoint from './VpcEndpoint';
+
 // Import associations to ensure they are set up
 import './associations';
 import './script-associations';
@@ -19,7 +25,19 @@ import './script-associations';
  */
 
 // Export all models
-export { User, Role, Permission, Script, ScriptExecution, ScriptParameter, ScriptSchedule };
+export { 
+  User, 
+  Role, 
+  Permission, 
+  Script, 
+  ScriptExecution, 
+  ScriptParameter, 
+  ScriptSchedule,
+  Vpc,
+  TransitGateway,
+  CustomerGateway,
+  VpcEndpoint
+};
 
 // Export database instance
 export { sequelize };
@@ -98,7 +116,7 @@ export async function closeDatabaseConnection(): Promise<void> {
 export async function validateModels(): Promise<boolean> {
   try {
     // Check if all models are properly defined
-    const models = [User, Role, Permission, Script, ScriptExecution, ScriptParameter, ScriptSchedule];
+    const models = [User, Role, Permission, Script, ScriptExecution, ScriptParameter, ScriptSchedule, Vpc, TransitGateway, CustomerGateway, VpcEndpoint];
     
     for (const model of models) {
       if (!model.tableName) {
@@ -114,6 +132,10 @@ export async function validateModels(): Promise<boolean> {
     await ScriptExecution.count();
     await ScriptParameter.count();
     await ScriptSchedule.count();
+    await Vpc.count();
+    await TransitGateway.count();
+    await CustomerGateway.count();
+    await VpcEndpoint.count();
 
     console.log('All models validated successfully.');
     return true;
@@ -136,6 +158,10 @@ export async function getModelStats(): Promise<{
   scriptExecutions: number;
   scriptParameters: number;
   scriptSchedules: number;
+  vpcs: number;
+  transitGateways: number;
+  customerGateways: number;
+  vpcEndpoints: number;
 }> {
   try {
     const [users, roles, permissions, userRoles, rolePermissions, scripts, scriptExecutions, scriptParameters, scriptSchedules] = await Promise.all([
