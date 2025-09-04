@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network CMDB API Documentation</title>
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui.css" />
+    <style>
+        html {
+            box-sizing: border-box;
+            overflow: -moz-scrollbars-vertical;
+            overflow-y: scroll;
+        }
+
+        *, *:before, *:after {
+            box-sizing: inherit;
+        }
+
+        body {
+            margin: 0;
+            background: #fafafa;
+        }
+
+        .swagger-ui .topbar {
+            background: #2c3e50;
+        }
+
+        .swagger-ui .topbar .download-url-wrapper .select-label {
+            color: #fff;
+        }
+
+        .swagger-ui .topbar .download-url-wrapper input[type=text] {
+            border: 2px solid #62a8ea;
+        }
+
+        .swagger-ui .topbar .download-url-wrapper .download-url-button {
+            background: #62a8ea;
+            color: #fff;
+        }
+
+        .custom-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .custom-header h1 {
+            margin: 0 0 1rem 0;
+            font-size: 2.5rem;
+            font-weight: 300;
+        }
+
+        .custom-header p {
+            margin: 0;
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .info-section {
+            background: white;
+            border-radius: 8px;
+            padding: 2rem;
+            margin: 2rem auto;
+            max-width: 1200px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .info-section h2 {
+            color: #2c3e50;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 0.5rem;
+        }
+
+        .endpoint-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .endpoint-card {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 6px;
+            border-left: 4px solid #62a8ea;
+        }
+
+        .endpoint-card h3 {
+            margin: 0 0 0.5rem 0;
+            color: #2c3e50;
+        }
+
+        .endpoint-card p {
+            margin: 0;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        #swagger-ui {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="custom-header">
+        <h1>Network CMDB API Documentation</h1>
+        <p>Comprehensive RESTful API for managing network infrastructure resources</p>
+    </div>
+
+    <div class="info-section">
+        <h2>Quick Start</h2>
+        <p>This API provides complete CRUD operations for network resources including VPCs, Transit Gateways, Customer Gateways, and VPC Endpoints.</p>
+        
+        <div class="endpoint-info">
+            <div class="endpoint-card">
+                <h3>VPCs</h3>
+                <p>Manage Virtual Private Clouds with full lifecycle operations</p>
+            </div>
+            <div class="endpoint-card">
+                <h3>Transit Gateways</h3>
+                <p>Control Transit Gateway resources and routing configurations</p>
+            </div>
+            <div class="endpoint-card">
+                <h3>Customer Gateways</h3>
+                <p>Manage Customer Gateway connections for VPN setups</p>
+            </div>
+            <div class="endpoint-card">
+                <h3>VPC Endpoints</h3>
+                <p>Configure private connections to AWS services</p>
+            </div>
+        </div>
+
+        <h2>Features</h2>
+        <ul>
+            <li><strong>Full CRUD Operations:</strong> Create, read, update, and delete all resource types</li>
+            <li><strong>Advanced Filtering:</strong> Filter by region, state, environment, owner, and more</li>
+            <li><strong>Pagination & Sorting:</strong> Efficient data retrieval with customizable pagination</li>
+            <li><strong>Bulk Operations:</strong> Create or delete multiple resources in a single request</li>
+            <li><strong>Validation:</strong> Comprehensive input validation with detailed error messages</li>
+            <li><strong>Audit Logging:</strong> All operations are logged with user context</li>
+            <li><strong>AWS Integration:</strong> Native support for AWS resource IDs and patterns</li>
+        </ul>
+
+        <h2>Base URLs</h2>
+        <ul>
+            <li><strong>Development:</strong> <code>http://localhost:3001/api</code></li>
+            <li><strong>Production:</strong> <code>https://api.network-cmdb.example.com/api</code></li>
+        </ul>
+
+        <h2>Authentication</h2>
+        <p>Authentication is required for all endpoints. Include your API token in the request headers:</p>
+        <pre><code>Authorization: Bearer &lt;your-api-token&gt;</code></pre>
+        <p>Or use API Key authentication:</p>
+        <pre><code>X-API-Key: &lt;your-api-key&gt;</code></pre>
+    </div>
+
+    <div id="swagger-ui"></div>
+
+    <script src="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-bundle.js"></script>
+    <script src="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-standalone-preset.js"></script>
+    <script>
+        window.onload = function() {
+            // Build a system
+            const ui = SwaggerUIBundle({
+                url: './openapi.yaml',
+                dom_id: '#swagger-ui',
+                deepLinking: true,
+                presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIStandalonePreset
+                ],
+                plugins: [
+                    SwaggerUIBundle.plugins.DownloadUrl
+                ],
+                layout: "StandaloneLayout",
+                tryItOutEnabled: true,
+                requestInterceptor: function(req) {
+                    // Add default headers if needed
+                    if (!req.headers['Content-Type'] && req.method !== 'GET') {
+                        req.headers['Content-Type'] = 'application/json';
+                    }
+                    return req;
+                },
+                responseInterceptor: function(res) {
+                    // Handle response formatting if needed
+                    return res;
+                },
+                onComplete: function() {
+                    console.log('Swagger UI loaded successfully');
+                },
+                onFailure: function(err) {
+                    console.error('Failed to load Swagger UI', err);
+                }
+            });
+
+            // Custom styling for better UX
+            setTimeout(() => {
+                const style = document.createElement('style');
+                style.textContent = `
+                    .swagger-ui .info .title {
+                        font-size: 2rem !important;
+                        color: #2c3e50 !important;
+                    }
+                    .swagger-ui .scheme-container {
+                        background: #f8f9fa !important;
+                        border: 1px solid #dee2e6 !important;
+                        border-radius: 6px !important;
+                        padding: 1rem !important;
+                        margin: 1rem 0 !important;
+                    }
+                    .swagger-ui .opblock.opblock-get {
+                        border-color: #62a8ea !important;
+                    }
+                    .swagger-ui .opblock.opblock-get .opblock-summary {
+                        border-color: #62a8ea !important;
+                    }
+                    .swagger-ui .opblock.opblock-post {
+                        border-color: #49cc90 !important;
+                    }
+                    .swagger-ui .opblock.opblock-post .opblock-summary {
+                        border-color: #49cc90 !important;
+                    }
+                    .swagger-ui .opblock.opblock-put {
+                        border-color: #fca130 !important;
+                    }
+                    .swagger-ui .opblock.opblock-put .opblock-summary {
+                        border-color: #fca130 !important;
+                    }
+                    .swagger-ui .opblock.opblock-delete {
+                        border-color: #f93e3e !important;
+                    }
+                    .swagger-ui .opblock.opblock-delete .opblock-summary {
+                        border-color: #f93e3e !important;
+                    }
+                `;
+                document.head.appendChild(style);
+            }, 1000);
+        };
+    </script>
+</body>
+</html>

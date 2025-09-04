@@ -15,6 +15,9 @@ import TransitGateway from './TransitGateway';
 import CustomerGateway from './CustomerGateway';
 import VpcEndpoint from './VpcEndpoint';
 
+// Search models
+import SavedQuery from './SavedQuery';
+
 // Import associations to ensure they are set up
 import './associations';
 import './script-associations';
@@ -36,7 +39,8 @@ export {
   Vpc,
   TransitGateway,
   CustomerGateway,
-  VpcEndpoint
+  VpcEndpoint,
+  SavedQuery
 };
 
 // Export database instance
@@ -116,7 +120,7 @@ export async function closeDatabaseConnection(): Promise<void> {
 export async function validateModels(): Promise<boolean> {
   try {
     // Check if all models are properly defined
-    const models = [User, Role, Permission, Script, ScriptExecution, ScriptParameter, ScriptSchedule, Vpc, TransitGateway, CustomerGateway, VpcEndpoint];
+    const models = [User, Role, Permission, Script, ScriptExecution, ScriptParameter, ScriptSchedule, Vpc, TransitGateway, CustomerGateway, VpcEndpoint, SavedQuery];
     
     for (const model of models) {
       if (!model.tableName) {
@@ -136,6 +140,7 @@ export async function validateModels(): Promise<boolean> {
     await TransitGateway.count();
     await CustomerGateway.count();
     await VpcEndpoint.count();
+    await SavedQuery.count();
 
     console.log('All models validated successfully.');
     return true;

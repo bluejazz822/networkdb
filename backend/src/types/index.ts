@@ -11,3 +11,6 @@ export * from './network/VpcTypes';
 export * from './network/TransitGatewayTypes';
 export * from './network/CustomerGatewayTypes';
 export * from './network/VpcEndpointTypes';
+
+// Search and filtering types
+export * from './search';

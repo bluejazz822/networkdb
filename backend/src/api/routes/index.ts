@@ -10,6 +10,8 @@ import customerGatewayRoutes from './customerGateway';
 import vpcEndpointRoutes from './vpcEndpoint';
 import importExportRoutes from './import-export';
 import bulkRoutes from './bulk';
+import searchRoutes from './search';
+import reportsRoutes from './reports';
 
 const router = Router();
 
@@ -39,7 +41,14 @@ router.get('/version', (req, res) => {
         'bulk-operations',
         'import-export',
         'python-scripts',
-        'audit-logging'
+        'audit-logging',
+        'advanced-search',
+        'saved-queries',
+        'auto-complete',
+        'reporting-system',
+        'dashboard-widgets',
+        'scheduled-reports',
+        'report-export'
       ]
     }
   });
@@ -52,6 +61,8 @@ router.use('/customer-gateways', customerGatewayRoutes);
 router.use('/vpc-endpoints', vpcEndpointRoutes);
 router.use('/', importExportRoutes); // Import/export routes are at root level
 router.use('/bulk', bulkRoutes); // Bulk operations routes
+router.use('/search', searchRoutes); // Advanced search and filtering routes
+router.use('/reports', reportsRoutes); // Reporting system routes
 
 // 404 handler for API routes
 router.use('*', (req, res) => {
