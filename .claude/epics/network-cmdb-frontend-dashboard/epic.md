@@ -4,7 +4,7 @@ status: backlog
 created: 2025-09-04T14:49:46Z
 progress: 0%
 prd: .claude/prds/network-cmdb-frontend-dashboard.md
-github: [Will be updated when synced to GitHub]
+github: https://github.com/bluejazz822/networkdb/issues/1
 ---
 
 # Epic: Network CMDB Frontend Dashboard
@@ -155,16 +155,16 @@ High-level task categories that will be created:
 4. Security review and penetration testing (Week 11-12)
 
 ## Tasks Created
-- [ ] 001.md - Database Integration and Schema Analysis (parallel: false - foundational)
-- [ ] 002.md - Project Structure and Development Environment (parallel: true)
-- [ ] 003.md - Authentication System Implementation (parallel: true)
-- [ ] 004.md - Core CRUD API Implementation (parallel: true)
-- [ ] 005.md - Advanced Search and Filtering API (parallel: true)
-- [ ] 006.md - Import/Export Engine Implementation (parallel: true)
-- [ ] 007.md - Frontend Core Components and Layout (parallel: true)
-- [ ] 008.md - Reporting System Implementation (parallel: true)
-- [ ] 009.md - Python Script Integration Service (parallel: true)
-- [ ] 010.md - Security Hardening and Performance Optimization (parallel: false - affects all)
+- [ ] #6 - Database Integration and Schema Analysis (parallel: false - foundational)
+- [ ] #8 - Project Structure and Development Environment (parallel: true)
+- [ ] #10 - Authentication System Implementation (parallel: true)
+- [ ] #11 - Core CRUD API Implementation (parallel: true)
+- [ ] #5 - Advanced Search and Filtering API (parallel: true)
+- [ ] #7 - Import/Export Engine Implementation (parallel: true)
+- [ ] #9 - Frontend Core Components and Layout (parallel: true)
+- [ ] #2 - Reporting System Implementation (parallel: true)
+- [ ] #3 - Python Script Integration Service (parallel: true)
+- [ ] #4 - Security Hardening and Performance Optimization (parallel: false - affects all)
 
 Total tasks: 10
 Parallel tasks: 8
