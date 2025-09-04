@@ -5,6 +5,7 @@
 
 import { Router } from 'express';
 import vpcRoutes from './vpc';
+import importExportRoutes from './import-export';
 // Import other route modules when created
 // import transitGatewayRoutes from './transitGateway';
 // import customerGatewayRoutes from './customerGateway';
@@ -46,6 +47,7 @@ router.get('/version', (req, res) => {
 
 // Mount resource routes
 router.use('/vpcs', vpcRoutes);
+router.use('/', importExportRoutes); // Import/export routes are at root level
 // router.use('/transit-gateways', transitGatewayRoutes);
 // router.use('/customer-gateways', customerGatewayRoutes);
 // router.use('/vpc-endpoints', vpcEndpointRoutes);
