@@ -1,0 +1,118 @@
+version: '3.8'
+
+services:
+  script-executor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: script-sandbox
+    restart: "no"
+    networks:
+      - script-network
+    volumes:
+      # Mount script files (read-only)
+      - "${SCRIPTS_PATH:-./scripts}:/app/scripts:ro"
+      # Mount workspace for script execution
+      - "${WORKSPACE_PATH:-./workspace}:/app/workspace"
+      # Mount logs directory
+      - "${LOGS_PATH:-./logs}:/app/logs"
+      # Mount output directory
+      - "${OUTPUT_PATH:-./output}:/app/output"
+    environment:
+      - SCRIPT_TIMEOUT=${SCRIPT_TIMEOUT:-1800}
+      - SCRIPT_MEMORY=${SCRIPT_MEMORY:-512}
+      - SCRIPT_CPU=${SCRIPT_CPU:-1}
+      - PYTHONPATH=/app/scripts
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: "${SCRIPT_CPU:-1}"
+          memory: "${SCRIPT_MEMORY:-512}M"
+        reservations:
+          cpus: "0.1"
+          memory: "64M"
+    # Security settings
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - DAC_OVERRIDE  # For file access
+    read_only: false
+    tmpfs:
+      - /tmp:size=100M,noexec,nosuid,nodev
+    # Prevent network access by default (can be overridden)
+    network_mode: "${NETWORK_MODE:-none}"
+    # User namespace remapping
+    user: "1000:1000"
+    # Process limits
+    pids_limit: 100
+    # Disable stdin/tty by default
+    stdin_open: false
+    tty: false
+
+  # Optional: Network-enabled executor for scripts that need internet access
+  script-executor-network:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: script-sandbox-network
+    restart: "no"
+    networks:
+      - script-network
+    volumes:
+      - "${SCRIPTS_PATH:-./scripts}:/app/scripts:ro"
+      - "${WORKSPACE_PATH:-./workspace}:/app/workspace"
+      - "${LOGS_PATH:-./logs}:/app/logs"
+      - "${OUTPUT_PATH:-./output}:/app/output"
+    environment:
+      - SCRIPT_TIMEOUT=${SCRIPT_TIMEOUT:-1800}
+      - SCRIPT_MEMORY=${SCRIPT_MEMORY:-512}
+      - SCRIPT_CPU=${SCRIPT_CPU:-1}
+      - PYTHONPATH=/app/scripts
+    deploy:
+      resources:
+        limits:
+          cpus: "${SCRIPT_CPU:-1}"
+          memory: "${SCRIPT_MEMORY:-512}M"
+        reservations:
+          cpus: "0.1"
+          memory: "64M"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - DAC_OVERRIDE
+      - NET_BIND_SERVICE  # For network operations
+    read_only: false
+    tmpfs:
+      - /tmp:size=100M,noexec,nosuid,nodev
+    user: "1000:1000"
+    pids_limit: 100
+    stdin_open: false
+    tty: false
+    # Network restrictions
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    # Profiles for conditional startup
+    profiles:
+      - network-enabled
+
+networks:
+  script-network:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# Health check configuration
+x-healthcheck: &default-healthcheck
+  test: ["CMD", "python3", "-c", "import sys; sys.exit(0)"]
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 10s

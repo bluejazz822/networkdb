@@ -1,0 +1,17 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" rx="6" fill="#1890ff"/>
+  <g transform="translate(4, 4)">
+    <!-- Network nodes -->
+    <circle cx="6" cy="6" r="2" fill="white"/>
+    <circle cx="18" cy="6" r="2" fill="white"/>
+    <circle cx="6" cy="18" r="2" fill="white"/>
+    <circle cx="18" cy="18" r="2" fill="white"/>
+    <circle cx="12" cy="12" r="2.5" fill="white"/>
+    
+    <!-- Network connections -->
+    <line x1="6" y1="6" x2="12" y2="12" stroke="white" stroke-width="1.5"/>
+    <line x1="18" y1="6" x2="12" y2="12" stroke="white" stroke-width="1.5"/>
+    <line x1="6" y1="18" x2="12" y2="12" stroke="white" stroke-width="1.5"/>
+    <line x1="18" y1="18" x2="12" y2="12" stroke="white" stroke-width="1.5"/>
+  </g>
+</svg>

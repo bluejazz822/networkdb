@@ -1,0 +1,1298 @@
+openapi: 3.0.3
+info:
+  title: Network CMDB API
+  description: |
+    Comprehensive RESTful API for managing network infrastructure resources including VPCs, Transit Gateways, Customer Gateways, and VPC Endpoints.
+    
+    ## Features
+    - Full CRUD operations for all network resources
+    - Advanced filtering, pagination, and sorting
+    - Bulk operations for efficient data management
+    - Input validation with detailed error responses
+    - Audit logging for all operations
+    - Import/export functionality
+    - AWS resource synchronization
+    
+    ## Authentication
+    Authentication is required for all endpoints. Include your API token in the Authorization header.
+    
+    ## Rate Limiting
+    API requests are rate limited to prevent abuse. Current limits:
+    - 1000 requests per hour per API key
+    - 100 bulk operations per hour per API key
+    
+    ## Error Handling
+    All endpoints return structured error responses with detailed error codes and messages.
+  version: 1.0.0
+  contact:
+    name: Network CMDB API Support
+    email: support@example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3001/api
+    description: Development server
+  - url: https://api.network-cmdb.example.com/api
+    description: Production server
+
+tags:
+  - name: VPCs
+    description: Virtual Private Cloud management
+  - name: Transit Gateways
+    description: Transit Gateway management
+  - name: Customer Gateways
+    description: Customer Gateway management
+  - name: VPC Endpoints
+    description: VPC Endpoint management
+  - name: Import/Export
+    description: Bulk data operations
+  - name: System
+    description: System health and information
+
+paths:
+  /health:
+    get:
+      tags: [System]
+      summary: Health check
+      description: Check API health status
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /version:
+    get:
+      tags: [System]
+      summary: API version information
+      description: Get API version and feature information
+      responses:
+        '200':
+          description: Version information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionResponse'
+
+  /vpcs:
+    get:
+      tags: [VPCs]
+      summary: List VPCs
+      description: Get a paginated list of VPCs with optional filtering and sorting
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/SortByParam'
+        - $ref: '#/components/parameters/SortOrderParam'
+        - $ref: '#/components/parameters/RegionParam'
+        - $ref: '#/components/parameters/StateParam'
+        - $ref: '#/components/parameters/EnvironmentParam'
+        - $ref: '#/components/parameters/OwnerParam'
+        - $ref: '#/components/parameters/SearchParam'
+        - name: cidrBlock
+          in: query
+          description: Filter by CIDR block
+          schema:
+            type: string
+            pattern: '^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$'
+      responses:
+        '200':
+          description: List of VPCs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedVpcResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+    post:
+      tags: [VPCs]
+      summary: Create VPC
+      description: Create a new VPC resource
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VpcCreate'
+      responses:
+        '201':
+          description: VPC created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VpcResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /vpcs/{id}:
+    get:
+      tags: [VPCs]
+      summary: Get VPC by ID
+      description: Retrieve a specific VPC by its internal ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: VPC internal ID
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: VPC details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VpcResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [VPCs]
+      summary: Update VPC
+      description: Update an existing VPC
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: VPC internal ID
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VpcUpdate'
+      responses:
+        '200':
+          description: VPC updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VpcResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+    delete:
+      tags: [VPCs]
+      summary: Delete VPC
+      description: Delete a VPC by its internal ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: VPC internal ID
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: VPC deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /vpcs/aws/{vpcId}/{region}:
+    get:
+      tags: [VPCs]
+      summary: Get VPC by AWS ID
+      description: Retrieve a VPC by its AWS VPC ID and region
+      parameters:
+        - name: vpcId
+          in: path
+          required: true
+          description: AWS VPC ID
+          schema:
+            type: string
+            pattern: '^vpc-[a-f0-9]{8,17}$'
+        - name: region
+          in: path
+          required: true
+          description: AWS region
+          schema:
+            $ref: '#/components/schemas/AwsRegion'
+      responses:
+        '200':
+          description: VPC details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VpcResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /vpcs/bulk:
+    post:
+      tags: [VPCs]
+      summary: Bulk create VPCs
+      description: Create multiple VPCs in a single operation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vpcs:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/VpcCreate'
+                  minItems: 1
+                  maxItems: 100
+              required: [vpcs]
+      responses:
+        '200':
+          description: Bulk operation results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkOperationResponse'
+
+    delete:
+      tags: [VPCs]
+      summary: Bulk delete VPCs
+      description: Delete multiple VPCs by their internal IDs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: integer
+                    minimum: 1
+                  minItems: 1
+                  maxItems: 100
+              required: [ids]
+      responses:
+        '200':
+          description: Bulk delete results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkOperationResponse'
+
+  /transit-gateways:
+    get:
+      tags: [Transit Gateways]
+      summary: List Transit Gateways
+      description: Get a paginated list of Transit Gateways
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/SortByParam'
+        - $ref: '#/components/parameters/SortOrderParam'
+        - $ref: '#/components/parameters/RegionParam'
+        - $ref: '#/components/parameters/StateParam'
+        - $ref: '#/components/parameters/EnvironmentParam'
+        - $ref: '#/components/parameters/OwnerParam'
+        - $ref: '#/components/parameters/SearchParam'
+      responses:
+        '200':
+          description: List of Transit Gateways
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTransitGatewayResponse'
+
+    post:
+      tags: [Transit Gateways]
+      summary: Create Transit Gateway
+      description: Create a new Transit Gateway resource
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransitGatewayCreate'
+      responses:
+        '201':
+          description: Transit Gateway created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransitGatewayResponse'
+
+  /customer-gateways:
+    get:
+      tags: [Customer Gateways]
+      summary: List Customer Gateways
+      description: Get a paginated list of Customer Gateways
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/SortByParam'
+        - $ref: '#/components/parameters/SortOrderParam'
+        - $ref: '#/components/parameters/RegionParam'
+        - $ref: '#/components/parameters/StateParam'
+        - $ref: '#/components/parameters/EnvironmentParam'
+        - $ref: '#/components/parameters/OwnerParam'
+        - $ref: '#/components/parameters/SearchParam'
+        - name: type
+          in: query
+          description: Filter by Customer Gateway type
+          schema:
+            type: string
+            enum: [ipsec.1]
+        - name: ipAddress
+          in: query
+          description: Filter by IP address
+          schema:
+            type: string
+            format: ipv4
+      responses:
+        '200':
+          description: List of Customer Gateways
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCustomerGatewayResponse'
+
+    post:
+      tags: [Customer Gateways]
+      summary: Create Customer Gateway
+      description: Create a new Customer Gateway resource
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerGatewayCreate'
+      responses:
+        '201':
+          description: Customer Gateway created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerGatewayResponse'
+
+  /vpc-endpoints:
+    get:
+      tags: [VPC Endpoints]
+      summary: List VPC Endpoints
+      description: Get a paginated list of VPC Endpoints
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/SortByParam'
+        - $ref: '#/components/parameters/SortOrderParam'
+        - $ref: '#/components/parameters/RegionParam'
+        - $ref: '#/components/parameters/StateParam'
+        - $ref: '#/components/parameters/EnvironmentParam'
+        - $ref: '#/components/parameters/OwnerParam'
+        - $ref: '#/components/parameters/SearchParam'
+        - name: vpcId
+          in: query
+          description: Filter by VPC ID
+          schema:
+            type: string
+            pattern: '^vpc-[a-f0-9]{8,17}$'
+        - name: type
+          in: query
+          description: Filter by VPC Endpoint type
+          schema:
+            type: string
+            enum: [Gateway, Interface, GatewayLoadBalancer]
+        - name: serviceName
+          in: query
+          description: Filter by service name
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of VPC Endpoints
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedVpcEndpointResponse'
+
+    post:
+      tags: [VPC Endpoints]
+      summary: Create VPC Endpoint
+      description: Create a new VPC Endpoint resource
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VpcEndpointCreate'
+      responses:
+        '201':
+          description: VPC Endpoint created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VpcEndpointResponse'
+
+components:
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      description: Page number (1-based)
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    LimitParam:
+      name: limit
+      in: query
+      description: Number of items per page
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 1000
+        default: 20
+    SortByParam:
+      name: sortBy
+      in: query
+      description: Field to sort by
+      schema:
+        type: string
+    SortOrderParam:
+      name: sortOrder
+      in: query
+      description: Sort order
+      schema:
+        type: string
+        enum: [ASC, DESC]
+        default: DESC
+    RegionParam:
+      name: region
+      in: query
+      description: Filter by AWS region
+      schema:
+        $ref: '#/components/schemas/AwsRegion'
+    StateParam:
+      name: state
+      in: query
+      description: Filter by resource state
+      schema:
+        type: string
+    EnvironmentParam:
+      name: environment
+      in: query
+      description: Filter by environment
+      schema:
+        type: string
+    OwnerParam:
+      name: owner
+      in: query
+      description: Filter by owner
+      schema:
+        type: string
+    SearchParam:
+      name: search
+      in: query
+      description: Search term for general search
+      schema:
+        type: string
+
+  schemas:
+    AwsRegion:
+      type: string
+      enum:
+        - us-east-1
+        - us-east-2
+        - us-west-1
+        - us-west-2
+        - eu-west-1
+        - eu-west-2
+        - eu-central-1
+        - ap-southeast-1
+        - ap-southeast-2
+        - ap-northeast-1
+
+    VpcState:
+      type: string
+      enum:
+        - pending
+        - available
+        - active
+        - inactive
+        - deleting
+        - deleted
+        - failed
+
+    TransitGatewayState:
+      type: string
+      enum:
+        - pending
+        - available
+        - modifying
+        - deleting
+        - deleted
+
+    CustomerGatewayState:
+      type: string
+      enum:
+        - pending
+        - available
+        - deleting
+        - deleted
+
+    VpcEndpointState:
+      type: string
+      enum:
+        - pending
+        - available
+        - deleting
+        - deleted
+        - rejected
+        - failed
+
+    VpcEndpointType:
+      type: string
+      enum:
+        - Gateway
+        - Interface
+        - GatewayLoadBalancer
+
+    Vpc:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        awsVpcId:
+          type: string
+          pattern: '^vpc-[a-f0-9]{8,17}$'
+        region:
+          $ref: '#/components/schemas/AwsRegion'
+        cidrBlock:
+          type: string
+          pattern: '^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$'
+        state:
+          $ref: '#/components/schemas/VpcState'
+        name:
+          type: string
+          maxLength: 255
+        environment:
+          type: string
+          maxLength: 100
+        owner:
+          type: string
+          maxLength: 255
+        awsAccountId:
+          type: string
+          pattern: '^\d{12}$'
+        tags:
+          type: object
+          additionalProperties:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+        - awsVpcId
+        - region
+        - cidrBlock
+        - state
+        - awsAccountId
+
+    VpcCreate:
+      type: object
+      properties:
+        awsVpcId:
+          type: string
+          pattern: '^vpc-[a-f0-9]{8,17}$'
+        region:
+          $ref: '#/components/schemas/AwsRegion'
+        cidrBlock:
+          type: string
+          pattern: '^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$'
+        state:
+          $ref: '#/components/schemas/VpcState'
+        name:
+          type: string
+          maxLength: 255
+        environment:
+          type: string
+          maxLength: 100
+        owner:
+          type: string
+          maxLength: 255
+        awsAccountId:
+          type: string
+          pattern: '^\d{12}$'
+        tags:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+        - awsVpcId
+        - region
+        - cidrBlock
+        - state
+        - awsAccountId
+
+    VpcUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        environment:
+          type: string
+          maxLength: 100
+        owner:
+          type: string
+          maxLength: 255
+        tags:
+          type: object
+          additionalProperties:
+            type: string
+
+    TransitGateway:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        awsTransitGatewayId:
+          type: string
+          pattern: '^tgw-[a-f0-9]{8,17}$'
+        region:
+          $ref: '#/components/schemas/AwsRegion'
+        state:
+          $ref: '#/components/schemas/TransitGatewayState'
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 500
+        amazonSideAsn:
+          type: integer
+          minimum: 1
+          maximum: 4294967294
+        defaultRouteTableId:
+          type: string
+          pattern: '^tgw-rtb-[a-f0-9]{8,17}$'
+        defaultRouteTableAssociation:
+          type: string
+          enum: [enable, disable]
+        defaultRouteTablePropagation:
+          type: string
+          enum: [enable, disable]
+        dnsSupport:
+          type: string
+          enum: [enable, disable]
+        multicast:
+          type: string
+          enum: [enable, disable]
+        environment:
+          type: string
+          maxLength: 100
+        owner:
+          type: string
+          maxLength: 255
+        awsAccountId:
+          type: string
+          pattern: '^\d{12}$'
+        tags:
+          type: object
+          additionalProperties:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+
+    TransitGatewayCreate:
+      type: object
+      properties:
+        awsTransitGatewayId:
+          type: string
+          pattern: '^tgw-[a-f0-9]{8,17}$'
+        region:
+          $ref: '#/components/schemas/AwsRegion'
+        state:
+          $ref: '#/components/schemas/TransitGatewayState'
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 500
+        amazonSideAsn:
+          type: integer
+          minimum: 1
+          maximum: 4294967294
+        environment:
+          type: string
+          maxLength: 100
+        owner:
+          type: string
+          maxLength: 255
+        awsAccountId:
+          type: string
+          pattern: '^\d{12}$'
+        tags:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+        - awsTransitGatewayId
+        - region
+        - state
+        - awsAccountId
+
+    CustomerGateway:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        awsCustomerGatewayId:
+          type: string
+          pattern: '^cgw-[a-f0-9]{8,17}$'
+        region:
+          $ref: '#/components/schemas/AwsRegion'
+        state:
+          $ref: '#/components/schemas/CustomerGatewayState'
+        type:
+          type: string
+          enum: [ipsec.1]
+        name:
+          type: string
+          maxLength: 255
+        ipAddress:
+          type: string
+          format: ipv4
+        bgpAsn:
+          type: integer
+          minimum: 1
+          maximum: 4294967294
+        deviceName:
+          type: string
+          maxLength: 255
+        environment:
+          type: string
+          maxLength: 100
+        owner:
+          type: string
+          maxLength: 255
+        awsAccountId:
+          type: string
+          pattern: '^\d{12}$'
+        tags:
+          type: object
+          additionalProperties:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+
+    CustomerGatewayCreate:
+      type: object
+      properties:
+        awsCustomerGatewayId:
+          type: string
+          pattern: '^cgw-[a-f0-9]{8,17}$'
+        region:
+          $ref: '#/components/schemas/AwsRegion'
+        state:
+          $ref: '#/components/schemas/CustomerGatewayState'
+        type:
+          type: string
+          enum: [ipsec.1]
+        name:
+          type: string
+          maxLength: 255
+        ipAddress:
+          type: string
+          format: ipv4
+        bgpAsn:
+          type: integer
+          minimum: 1
+          maximum: 4294967294
+        deviceName:
+          type: string
+          maxLength: 255
+        environment:
+          type: string
+          maxLength: 100
+        owner:
+          type: string
+          maxLength: 255
+        awsAccountId:
+          type: string
+          pattern: '^\d{12}$'
+        tags:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+        - awsCustomerGatewayId
+        - region
+        - state
+        - type
+        - ipAddress
+        - bgpAsn
+        - awsAccountId
+
+    VpcEndpoint:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        awsVpcEndpointId:
+          type: string
+          pattern: '^vpce-[a-f0-9]{8,17}$'
+        vpcId:
+          type: string
+          pattern: '^vpc-[a-f0-9]{8,17}$'
+        region:
+          $ref: '#/components/schemas/AwsRegion'
+        state:
+          $ref: '#/components/schemas/VpcEndpointState'
+        type:
+          $ref: '#/components/schemas/VpcEndpointType'
+        serviceName:
+          type: string
+          pattern: '^com\.amazonaws(\.vpce)?(\.[a-z0-9-]+)*\.[a-z0-9-]+$'
+        name:
+          type: string
+          maxLength: 255
+        routeTableIds:
+          type: array
+          items:
+            type: string
+            pattern: '^rtb-[a-f0-9]{8,17}$'
+        subnetIds:
+          type: array
+          items:
+            type: string
+            pattern: '^subnet-[a-f0-9]{8,17}$'
+        securityGroupIds:
+          type: array
+          items:
+            type: string
+            pattern: '^sg-[a-f0-9]{8,17}$'
+        privateDnsEnabled:
+          type: boolean
+        requesterManaged:
+          type: boolean
+        environment:
+          type: string
+          maxLength: 100
+        owner:
+          type: string
+          maxLength: 255
+        awsAccountId:
+          type: string
+          pattern: '^\d{12}$'
+        tags:
+          type: object
+          additionalProperties:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+
+    VpcEndpointCreate:
+      type: object
+      properties:
+        awsVpcEndpointId:
+          type: string
+          pattern: '^vpce-[a-f0-9]{8,17}$'
+        vpcId:
+          type: string
+          pattern: '^vpc-[a-f0-9]{8,17}$'
+        region:
+          $ref: '#/components/schemas/AwsRegion'
+        state:
+          $ref: '#/components/schemas/VpcEndpointState'
+        type:
+          $ref: '#/components/schemas/VpcEndpointType'
+        serviceName:
+          type: string
+          pattern: '^com\.amazonaws(\.vpce)?(\.[a-z0-9-]+)*\.[a-z0-9-]+$'
+        name:
+          type: string
+          maxLength: 255
+        routeTableIds:
+          type: array
+          items:
+            type: string
+            pattern: '^rtb-[a-f0-9]{8,17}$'
+        subnetIds:
+          type: array
+          items:
+            type: string
+            pattern: '^subnet-[a-f0-9]{8,17}$'
+        securityGroupIds:
+          type: array
+          items:
+            type: string
+            pattern: '^sg-[a-f0-9]{8,17}$'
+        privateDnsEnabled:
+          type: boolean
+        requesterManaged:
+          type: boolean
+        environment:
+          type: string
+          maxLength: 100
+        owner:
+          type: string
+          maxLength: 255
+        awsAccountId:
+          type: string
+          pattern: '^\d{12}$'
+        tags:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+        - awsVpcEndpointId
+        - vpcId
+        - region
+        - state
+        - type
+        - serviceName
+        - awsAccountId
+
+    PaginationMetadata:
+      type: object
+      properties:
+        totalCount:
+          type: integer
+          minimum: 0
+        page:
+          type: integer
+          minimum: 1
+        limit:
+          type: integer
+          minimum: 1
+        hasNextPage:
+          type: boolean
+        hasPrevPage:
+          type: boolean
+
+    ApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        timestamp:
+          type: string
+          format: date-time
+
+    SuccessResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            success:
+              type: boolean
+              example: true
+
+    ErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            success:
+              type: boolean
+              example: false
+            message:
+              type: string
+            errors:
+              type: array
+              items:
+                type: object
+                properties:
+                  code:
+                    type: string
+                  message:
+                    type: string
+                  field:
+                    type: string
+
+    VpcResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            success:
+              type: boolean
+              example: true
+            data:
+              $ref: '#/components/schemas/Vpc'
+
+    PaginatedVpcResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            success:
+              type: boolean
+              example: true
+            data:
+              allOf:
+                - $ref: '#/components/schemas/PaginationMetadata'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Vpc'
+
+    TransitGatewayResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            success:
+              type: boolean
+              example: true
+            data:
+              $ref: '#/components/schemas/TransitGateway'
+
+    PaginatedTransitGatewayResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            success:
+              type: boolean
+              example: true
+            data:
+              allOf:
+                - $ref: '#/components/schemas/PaginationMetadata'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/TransitGateway'
+
+    CustomerGatewayResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            success:
+              type: boolean
+              example: true
+            data:
+              $ref: '#/components/schemas/CustomerGateway'
+
+    PaginatedCustomerGatewayResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            success:
+              type: boolean
+              example: true
+            data:
+              allOf:
+                - $ref: '#/components/schemas/PaginationMetadata'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/CustomerGateway'
+
+    VpcEndpointResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            success:
+              type: boolean
+              example: true
+            data:
+              $ref: '#/components/schemas/VpcEndpoint'
+
+    PaginatedVpcEndpointResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            success:
+              type: boolean
+              example: true
+            data:
+              allOf:
+                - $ref: '#/components/schemas/PaginationMetadata'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/VpcEndpoint'
+
+    BulkOperationResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            success:
+              type: boolean
+              example: true
+            data:
+              type: object
+              properties:
+                created:
+                  type: array
+                  items:
+                    type: object
+                failed:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      item:
+                        type: object
+                      errors:
+                        type: array
+                        items:
+                          type: object
+
+    HealthResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            success:
+              type: boolean
+              example: true
+            message:
+              type: string
+              example: "Network CMDB API is healthy"
+
+    VersionResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            success:
+              type: boolean
+              example: true
+            data:
+              type: object
+              properties:
+                version:
+                  type: string
+                  example: "1.0.0"
+                apiVersion:
+                  type: string
+                  example: "v1"
+                environment:
+                  type: string
+                  example: "development"
+                features:
+                  type: array
+                  items:
+                    type: string
+
+  responses:
+    BadRequest:
+      description: Bad request - validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: "Validation failed"
+            errors:
+              - code: "VALIDATION_ERROR"
+                message: "Invalid VPC ID format"
+                field: "awsVpcId"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: "Resource not found"
+            errors:
+              - code: "NOT_FOUND"
+                message: "VPC with ID 123 not found"
+
+    Conflict:
+      description: Resource conflict - duplicate resource
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: "Resource conflict"
+            errors:
+              - code: "DUPLICATE_RESOURCE"
+                message: "VPC with ID vpc-123abc already exists"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: "Internal server error"
+            errors:
+              - code: "INTERNAL_ERROR"
+                message: "An unexpected error occurred"
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - ApiKeyAuth: []
+  - BearerAuth: []

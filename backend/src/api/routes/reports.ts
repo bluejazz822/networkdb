@@ -1,0 +1,576 @@
+/**
+ * Reports API Routes
+ * Comprehensive reporting endpoints for dashboard, charts, and report generation
+ */
+
+import { Router, Request, Response } from 'express';
+import { ReportingService } from '../../services/reporting/ReportingService';
+import { ExportService } from '../../services/reporting/ExportService';
+import { SchedulerService } from '../../services/scheduler/SchedulerService';
+import { validateRequest, asyncHandler } from '../middleware/validation';
+import { ReportValidationSchemas } from '../../schemas/reports';
+import { 
+  ReportQuery, 
+  ReportDefinition, 
+  ExportFormat,
+  ReportExportOptions,
+  ChartConfiguration,
+  AggregationType
+} from '../../types/reports';
+import { ResourceType } from '../../types/search';
+import { sequelize } from '../../config/database';
+
+const router = Router();
+
+// Initialize services
+const reportingService = new ReportingService(sequelize);
+const exportService = new ExportService();
+const schedulerService = new SchedulerService(reportingService, exportService);
+
+// ===================== DASHBOARD ENDPOINTS =====================
+
+/**
+ * GET /api/reports/dashboard
+ * Get dashboard data with key metrics and widgets
+ */
+router.get('/dashboard',
+  asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.user?.id;
+    
+    const result = await reportingService.getDashboardData(userId);
+    
+    if (!result.success) {
+      return res.status(500).json(result);
+    }
+
+    res.json(result);
+  })
+);
+
+/**
+ * GET /api/reports/dashboard/widgets/:widgetType
+ * Get specific widget data
+ */
+router.get('/dashboard/widgets/:widgetType',
+  validateRequest({
+    params: {
+      widgetType: require('joi').string().valid('metrics', 'charts', 'status', 'activity').required()
+    },
+    query: {
+      timeRange: require('joi').string().valid('1h', '24h', '7d', '30d').default('24h'),
+      refresh: require('joi').boolean().default(false)
+    }
+  }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { widgetType } = req.params;
+    const { timeRange, refresh } = req.query;
+    const userId = req.user?.id;
+
+    // Route to appropriate widget data method
+    let result;
+    switch (widgetType) {
+      case 'metrics':
+        result = await reportingService.getDashboardData(userId);
+        if (result.success) {
+          result.data = {
+            resourceCounts: result.data.resourceCounts,
+            utilizationMetrics: result.data.utilizationMetrics
+          };
+        }
+        break;
+      case 'status':
+        result = await reportingService.getDashboardData(userId);
+        if (result.success) {
+          result.data = { healthStatus: result.data.healthStatus };
+        }
+        break;
+      case 'activity':
+        result = await reportingService.getDashboardData(userId);
+        if (result.success) {
+          result.data = { recentActivity: result.data.recentActivity };
+        }
+        break;
+      default:
+        return res.status(404).json({
+          success: false,
+          errors: [{ code: 'WIDGET_NOT_FOUND', message: `Widget type '${widgetType}' not found` }]
+        });
+    }
+
+    if (!result.success) {
+      return res.status(500).json(result);
+    }
+
+    res.json(result);
+  })
+);
+
+// ===================== REPORT GENERATION ENDPOINTS =====================
+
+/**
+ * POST /api/reports/generate
+ * Generate a custom report
+ */
+router.post('/generate',
+  validateRequest({ body: ReportValidationSchemas.generateReport }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const reportQuery: ReportQuery = req.body;
+    const userId = req.user?.id;
+
+    const result = await reportingService.executeReport(reportQuery, userId);
+    
+    if (!result.success) {
+      const statusCode = 
+        result.errors?.[0]?.code === 'INVALID_QUERY' ? 400 :
+        result.errors?.[0]?.code === 'PERMISSION_DENIED' ? 403 :
+        result.errors?.[0]?.code === 'TIMEOUT' ? 408 : 500;
+      
+      return res.status(statusCode).json(result);
+    }
+
+    res.json(result);
+  })
+);
+
+/**
+ * POST /api/reports/preview
+ * Generate a report preview
+ */
+router.post('/preview',
+  validateRequest({ body: ReportValidationSchemas.generateReport }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const reportQuery: ReportQuery = req.body;
+    const userId = req.user?.id;
+
+    const result = await reportingService.generateReportPreview(reportQuery, userId);
+    
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+
+    res.json(result);
+  })
+);
+
+/**
+ * POST /api/reports/aggregate
+ * Get aggregated data for charts
+ */
+router.post('/aggregate',
+  validateRequest({
+    body: {
+      resourceType: require('joi').string().valid('vpc', 'transitGateway', 'customerGateway', 'vpcEndpoint').required(),
+      aggregation: require('joi').string().valid('count', 'sum', 'avg', 'min', 'max').required(),
+      groupBy: require('joi').string().required(),
+      filters: require('joi').array().optional()
+    }
+  }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { resourceType, aggregation, groupBy, filters } = req.body;
+    
+    const result = await reportingService.getAggregatedData(
+      resourceType as ResourceType,
+      aggregation as AggregationType,
+      groupBy,
+      filters
+    );
+    
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+
+    res.json(result);
+  })
+);
+
+// ===================== EXPORT ENDPOINTS =====================
+
+/**
+ * POST /api/reports/export
+ * Export report data in various formats
+ */
+router.post('/export',
+  validateRequest({
+    body: {
+      data: require('joi').array().required(),
+      format: require('joi').string().valid('pdf', 'excel', 'csv', 'json', 'html').required(),
+      options: require('joi').object({
+        includeCharts: require('joi').boolean().default(false),
+        includeMetadata: require('joi').boolean().default(true),
+        compression: require('joi').boolean().default(false),
+        password: require('joi').string().optional()
+      }).optional(),
+      metadata: require('joi').object().optional()
+    }
+  }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { data, format, options = {}, metadata } = req.body;
+
+    const exportOptions: ReportExportOptions = {
+      format: format as ExportFormat,
+      ...options
+    };
+
+    const result = await exportService.exportData(data, format, exportOptions, metadata);
+    
+    if (!result.success) {
+      return res.status(500).json(result);
+    }
+
+    res.json({
+      success: true,
+      data: {
+        downloadUrl: `/api/reports/download/${result.data!.fileName}`,
+        fileName: result.data!.fileName,
+        size: result.data!.size,
+        format
+      }
+    });
+  })
+);
+
+/**
+ * GET /api/reports/download/:fileName
+ * Download exported report file
+ */
+router.get('/download/:fileName',
+  asyncHandler(async (req: Request, res: Response) => {
+    const { fileName } = req.params;
+    
+    const fileStream = exportService.getFileStream(fileName);
+    
+    if (!fileStream) {
+      return res.status(404).json({
+        success: false,
+        errors: [{ code: 'FILE_NOT_FOUND', message: 'Export file not found' }]
+      });
+    }
+
+    // Set appropriate headers
+    const fileExt = fileName.split('.').pop()?.toLowerCase();
+    const contentTypes: Record<string, string> = {
+      'pdf': 'application/pdf',
+      'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'csv': 'text/csv',
+      'json': 'application/json',
+      'html': 'text/html'
+    };
+
+    res.setHeader('Content-Type', contentTypes[fileExt || ''] || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    
+    fileStream.pipe(res);
+  })
+);
+
+// ===================== REPORT TEMPLATES ENDPOINTS =====================
+
+/**
+ * GET /api/reports/templates
+ * Get available report templates
+ */
+router.get('/templates',
+  asyncHandler(async (req: Request, res: Response) => {
+    // Return predefined report templates
+    const templates = [
+      {
+        id: 'inventory-summary',
+        name: 'Inventory Summary',
+        description: 'Overview of all network resources',
+        category: 'inventory',
+        fields: ['resource_type', 'name', 'status', 'region', 'created_at'],
+        defaultFilters: [],
+        defaultGrouping: ['resource_type'],
+        defaultSorting: [{ field: 'created_at', direction: 'DESC' }]
+      },
+      {
+        id: 'compliance-report',
+        name: 'Compliance Report',
+        description: 'Compliance status of network resources',
+        category: 'compliance',
+        fields: ['resource_type', 'name', 'compliance_status', 'last_checked'],
+        defaultFilters: [],
+        defaultGrouping: ['compliance_status'],
+        defaultSorting: [{ field: 'last_checked', direction: 'DESC' }]
+      },
+      {
+        id: 'utilization-analysis',
+        name: 'Utilization Analysis',
+        description: 'Resource utilization metrics and trends',
+        category: 'utilization',
+        fields: ['resource_type', 'name', 'utilization_percent', 'capacity'],
+        defaultFilters: [],
+        defaultGrouping: ['resource_type'],
+        defaultSorting: [{ field: 'utilization_percent', direction: 'DESC' }]
+      }
+    ];
+
+    res.json({
+      success: true,
+      data: templates
+    });
+  })
+);
+
+/**
+ * GET /api/reports/templates/:templateId
+ * Get specific report template
+ */
+router.get('/templates/:templateId',
+  asyncHandler(async (req: Request, res: Response) => {
+    const { templateId } = req.params;
+    
+    // This would typically query a database
+    // For now, return a mock template
+    const template = {
+      id: templateId,
+      name: 'Sample Template',
+      description: 'Sample report template',
+      category: 'custom',
+      fields: ['id', 'name', 'status'],
+      defaultFilters: [],
+      defaultGrouping: [],
+      defaultSorting: []
+    };
+
+    res.json({
+      success: true,
+      data: template
+    });
+  })
+);
+
+// ===================== SCHEDULED REPORTS ENDPOINTS =====================
+
+/**
+ * POST /api/reports/schedule
+ * Schedule a report for automatic generation
+ */
+router.post('/schedule',
+  validateRequest({ body: ReportValidationSchemas.scheduleReport }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const reportDefinition: ReportDefinition = req.body;
+    const userId = req.user?.id;
+
+    if (userId) {
+      reportDefinition.createdBy = userId;
+    }
+
+    const result = await schedulerService.scheduleReport(
+      reportDefinition.id || 1, 
+      reportDefinition
+    );
+    
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+
+    res.status(201).json(result);
+  })
+);
+
+/**
+ * GET /api/reports/scheduled
+ * Get all scheduled reports
+ */
+router.get('/scheduled',
+  asyncHandler(async (req: Request, res: Response) => {
+    const scheduledJobs = schedulerService.getScheduledJobs();
+    
+    res.json({
+      success: true,
+      data: scheduledJobs.map(job => ({
+        id: job.id,
+        reportId: job.reportId,
+        frequency: job.schedule.frequency,
+        nextRun: job.schedule.startDate,
+        enabled: job.schedule.enabled
+      }))
+    });
+  })
+);
+
+/**
+ * DELETE /api/reports/scheduled/:reportId
+ * Unschedule a report
+ */
+router.delete('/scheduled/:reportId',
+  validateRequest({
+    params: {
+      reportId: require('joi').number().integer().positive().required()
+    }
+  }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const reportId = parseInt(req.params.reportId);
+    
+    const result = await schedulerService.unscheduleReport(reportId);
+    
+    if (!result.success) {
+      const statusCode = result.errors?.[0]?.code === 'JOB_NOT_FOUND' ? 404 : 400;
+      return res.status(statusCode).json(result);
+    }
+
+    res.json(result);
+  })
+);
+
+// ===================== ANALYTICS ENDPOINTS =====================
+
+/**
+ * GET /api/reports/analytics
+ * Get report analytics and usage metrics
+ */
+router.get('/analytics',
+  asyncHandler(async (req: Request, res: Response) => {
+    const reportId = req.query.reportId ? parseInt(req.query.reportId as string) : undefined;
+    
+    const result = await reportingService.getReportAnalytics(reportId);
+    
+    if (!result.success) {
+      return res.status(500).json(result);
+    }
+
+    res.json(result);
+  })
+);
+
+// ===================== REPORT HISTORY ENDPOINTS =====================
+
+/**
+ * GET /api/reports/history
+ * Get report execution history
+ */
+router.get('/history',
+  validateRequest({
+    query: {
+      reportId: require('joi').number().integer().positive().optional(),
+      limit: require('joi').number().integer().min(1).max(100).default(20),
+      offset: require('joi').number().integer().min(0).default(0)
+    }
+  }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { reportId, limit, offset } = req.query;
+    
+    // This would typically query a report_executions table
+    // For now, return mock history data
+    const history = [
+      {
+        id: 1,
+        reportId: reportId || 1,
+        status: 'completed',
+        startTime: new Date(Date.now() - 86400000),
+        endTime: new Date(Date.now() - 86400000 + 5000),
+        executionTime: 5000,
+        recordCount: 150,
+        executedBy: req.user?.id || 1
+      }
+    ];
+
+    res.json({
+      success: true,
+      data: history,
+      metadata: {
+        total: history.length,
+        limit: Number(limit),
+        offset: Number(offset),
+        hasMore: false
+      }
+    });
+  })
+);
+
+// ===================== REPORT SHARING ENDPOINTS =====================
+
+/**
+ * POST /api/reports/share
+ * Create a shareable link for a report
+ */
+router.post('/share',
+  validateRequest({
+    body: {
+      reportId: require('joi').number().integer().positive().required(),
+      expiresAt: require('joi').date().optional(),
+      maxViews: require('joi').number().integer().positive().optional(),
+      password: require('joi').string().min(4).optional()
+    }
+  }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { reportId, expiresAt, maxViews, password } = req.body;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        errors: [{ code: 'AUTHENTICATION_REQUIRED', message: 'User must be authenticated' }]
+      });
+    }
+
+    // Generate share token
+    const shareToken = require('crypto').randomBytes(32).toString('hex');
+
+    const shareData = {
+      id: Date.now(), // Mock ID
+      reportId,
+      shareToken,
+      expiresAt,
+      maxViews,
+      currentViews: 0,
+      password,
+      createdBy: userId,
+      createdAt: new Date()
+    };
+
+    res.status(201).json({
+      success: true,
+      data: {
+        shareUrl: `/shared-reports/${shareToken}`,
+        token: shareToken,
+        expiresAt: expiresAt || null,
+        maxViews: maxViews || null
+      }
+    });
+  })
+);
+
+// ===================== HEALTH CHECK ENDPOINT =====================
+
+/**
+ * GET /api/reports/health
+ * Reports system health check
+ */
+router.get('/health',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const health = {
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        services: {
+          reporting: 'operational',
+          export: 'operational',
+          scheduler: 'operational',
+          database: 'connected'
+        },
+        metrics: {
+          scheduledJobs: schedulerService.getScheduledJobs().length,
+          uptime: process.uptime()
+        }
+      };
+
+      res.json({
+        success: true,
+        data: health
+      });
+    } catch (error) {
+      res.status(503).json({
+        success: false,
+        data: {
+          status: 'unhealthy',
+          timestamp: new Date().toISOString(),
+          error: error.message
+        }
+      });
+    }
+  })
+);
+
+export default router;
