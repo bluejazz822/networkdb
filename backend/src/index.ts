@@ -24,11 +24,11 @@ console.log('- Password:', process.env.DB_PASSWORD ? '***SET***' : 'NOT SET');
 
 const sequelize = new Sequelize({
   dialect: 'mysql',
-  host: '172.16.30.62',
-  port: 44060,
-  database: 'mydatabase',
-  username: 'root',
-  password: 'Gq34Ko90#110',
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT || '3306'),
+  database: process.env.DB_NAME || 'mydatabase',
+  username: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD,
   logging: process.env.NODE_ENV === 'development' ? console.log : false,
   dialectOptions: {
     connectTimeout: 10000,
@@ -280,7 +280,6 @@ app.get('/api/vpcs/:id', async (req, res) => {
       success: true,
       data: vpcData
     });
-    return;
   } catch (error) {
     console.error('Error fetching VPC:', error);
     res.status(500).json({
@@ -364,7 +363,6 @@ app.put('/api/vpcs/:id', async (req, res) => {
       data: responseData,
       message: 'VPC updated successfully'
     });
-    return;
 
   } catch (error) {
     console.error('Error updating VPC:', error);
