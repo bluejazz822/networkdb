@@ -22,10 +22,6 @@ FROM nginx:alpine AS production
 # Install curl for health checks
 RUN apk add --no-cache curl
 
-# Create non-root user
-RUN addgroup -g 1001 -S nginx-user && \
-    adduser -S nginx-user -u 1001 -G nginx-user
-
 # Copy built application from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
@@ -33,19 +29,7 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/nginx.conf
 
 # Create config directory for external configuration
-RUN mkdir -p /usr/share/nginx/html/config && \
-    chown -R nginx-user:nginx-user /usr/share/nginx/html
-
-# Set proper permissions
-RUN chown -R nginx-user:nginx-user /var/cache/nginx && \
-    chown -R nginx-user:nginx-user /var/log/nginx && \
-    chown -R nginx-user:nginx-user /etc/nginx/conf.d
-    
-RUN touch /var/run/nginx.pid && \
-    chown -R nginx-user:nginx-user /var/run/nginx.pid
-
-# Switch to non-root user
-USER nginx-user
+RUN mkdir -p /usr/share/nginx/html/config
 
 # Expose port
 EXPOSE 80
