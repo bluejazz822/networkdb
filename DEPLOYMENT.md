@@ -7,6 +7,19 @@ This guide covers the production deployment of the Network CMDB application usin
 - **Backend**: Node.js/Express API server with TypeScript
 - **Frontend**: React application served via Nginx
 
+## Recent Updates (v1.0.1)
+
+**Port Configuration Changed:**
+- Backend now runs on port 3301 (previously 3001)
+- Production: http://localhost:3301
+- Staging: http://localhost:3302 (mapped to container 3301)
+
+**Dependencies Updated:**
+- ESLint upgraded to v9.35.0 with improved TypeScript support
+- Removed deprecated packages (csurf, rimraf v2/v3)
+- Fixed npm deprecation warnings for cleaner builds
+- Updated TypeScript ESLint plugins for better compatibility
+
 ## Architecture
 
 ```
@@ -14,7 +27,7 @@ This guide covers the production deployment of the Network CMDB application usin
 │                 │    │                 │    │                 │
 │   Frontend      │────│    Backend      │────│   MySQL DB      │
 │   (Nginx)       │    │   (Node.js)     │    │   (External)    │
-│   Port: 80      │    │   Port: 3001    │    │   Port: 44060   │
+│   Port: 80      │    │   Port: 3301    │    │   Port: 44060   │
 │                 │    │                 │    │                 │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
@@ -61,7 +74,7 @@ DB_NAME=mydatabase
 DB_USER=root
 DB_PASSWORD=your-secure-password
 NODE_ENV=production
-PORT=3001
+PORT=3301
 FRONTEND_URL=http://localhost:80
 SESSION_SECRET=your-super-secure-session-secret
 ```
@@ -125,7 +138,7 @@ docker-compose ps
 docker-compose logs -f
 
 # Verify health checks
-docker-compose exec backend curl http://localhost:3001/health
+docker-compose exec backend curl http://localhost:3301/health
 docker-compose exec frontend curl http://localhost:80/health
 ```
 
@@ -137,14 +150,23 @@ docker-compose -f docker-compose.staging.yml up -d --build
 
 # Check staging status
 docker-compose -f docker-compose.staging.yml ps
+
+# Verify staging endpoints
+curl http://localhost:3302/health  # Staging backend (external port)
+curl http://localhost:8080/        # Staging frontend
 ```
+
+**Staging Port Mapping:**
+- Frontend: External port 8080 → Container port 80
+- Backend: External port 3302 → Container port 3301
+- Database: External MySQL at 172.16.30.62:44060
 
 ### 4. Deployment Verification
 
 #### Health Checks
 ```bash
 # Backend health
-curl http://localhost:3001/health
+curl http://localhost:3301/health
 
 # Frontend health (through nginx)
 curl http://localhost:80/health
@@ -331,7 +353,7 @@ netstat -tulpn | grep :80
 docker-compose logs backend
 
 # Check backend health
-docker-compose exec backend curl http://localhost:3001/health
+docker-compose exec backend curl http://localhost:3301/health
 ```
 
 ### Performance Tuning
@@ -407,7 +429,7 @@ chmod +x update-networkdb.sh
 ### Monitoring Setup
 ```bash
 # Add monitoring endpoints
-curl http://localhost:3001/health | jq .
+curl http://localhost:3301/health | jq .
 curl http://localhost:80/api/vpcs | jq '.total'
 ```
 
@@ -420,5 +442,5 @@ For deployment issues or questions:
 
 ---
 
-**Last Updated**: $(date)
-**Version**: 1.0.0
+**Last Updated**: September 2025
+**Version**: 1.0.1 - Updated for port 3301
