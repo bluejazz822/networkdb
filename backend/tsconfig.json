@@ -33,18 +33,12 @@
     }
   },
   "include": [
-    "src/**/*"
+    "src/index.ts"
   ],
   "exclude": [
     "node_modules",
     "dist",
     "**/*.test.ts",
-    "**/*.spec.ts",
-    "src/database",
-    "src/utils/db-performance-integration.ts",
-    "src/utils/db-health-check.ts",
-    "src/utils/db-connection.ts",
-    "src/config/database.ts",
-    "src/models"
+    "**/*.spec.ts"
   ]
 }
