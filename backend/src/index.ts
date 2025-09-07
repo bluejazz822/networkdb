@@ -9,9 +9,37 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import { Sequelize, DataTypes } from 'sequelize';
 
 // Load environment variables
 dotenv.config();
+
+// Database connection
+console.log('🔍 Database connection config:');
+console.log('- Host:', process.env.DB_HOST || 'localhost');
+console.log('- Port:', parseInt(process.env.DB_PORT || '44060'));
+console.log('- Database:', process.env.DB_NAME || 'mydatabase');
+console.log('- Username:', process.env.DB_USER || 'root');
+console.log('- Password:', process.env.DB_PASSWORD ? '***SET***' : 'NOT SET');
+
+const sequelize = new Sequelize({
+  dialect: 'mysql',
+  host: '172.16.30.62',
+  port: 44060,
+  database: 'mydatabase',
+  username: 'root',
+  password: 'Gq34Ko90#110',
+  logging: process.env.NODE_ENV === 'development' ? console.log : false,
+  dialectOptions: {
+    connectTimeout: 10000,
+  },
+  pool: {
+    max: 1,
+    min: 1,
+    acquire: 30000,
+    idle: 10000
+  }
+});
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -25,6 +53,75 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Define VPC model to match your actual vpc_info table structure
+const VpcInfo = sequelize.define('vpc_info', {
+  AccountId: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  Region: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  VpcId: {
+    type: DataTypes.STRING,
+    primaryKey: true,
+    allowNull: false
+  },
+  CidrBlock: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  IsDefault: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  Name: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  'ENV Name': {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'ENV Name'
+  },
+  Tenant: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  Site: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  status: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  created_time: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  termindated_time: {
+    type: DataTypes.DATE,
+    allowNull: true
+  }
+}, {
+  tableName: 'vpc_info',
+  timestamps: false
+});
+
+// Test database connection
+async function connectToDatabase() {
+  try {
+    await sequelize.authenticate();
+    console.log('✅ Database connection established successfully.');
+  } catch (err) {
+    console.error('❌ Unable to connect to database:', err.message);
+    console.log('🔄 Continuing with mock data fallback...');
+  }
+}
+connectToDatabase();
+
 // Health check endpoint
 app.get('/health', async (req, res) => {
   res.json({
@@ -35,16 +132,162 @@ app.get('/health', async (req, res) => {
   });
 });
 
-// API routes placeholder
+// API routes
 app.get('/api', (req, res) => {
   res.json({
     message: 'Network CMDB Backend API',
     version: '1.0.0',
     endpoints: {
       health: '/health',
+      vpcs: '/api/vpcs',
       api: '/api'
     }
   });
+});
+
+// VPCs endpoint with database fallback
+app.get('/api/vpcs', async (req, res) => {
+  try {
+    // Try database first
+    const vpcs = await VpcInfo.findAll({
+      attributes: [
+        'VpcId',
+        'CidrBlock', 
+        'status',
+        'Region',
+        'AccountId',
+        'Name',
+        'ENV Name',
+        'IsDefault',
+        'Tenant',
+        'Site',
+        'created_time'
+      ],
+      order: [['created_time', 'DESC']]
+    });
+
+    // Transform database fields to frontend format with all original fields
+    const vpcList = vpcs.map(vpc => {
+      const vpcData = vpc.toJSON();
+      return {
+        // Standard format for compatibility
+        id: vpcData.VpcId,
+        vpc_id: vpcData.VpcId,
+        cidr_block: vpcData.CidrBlock,
+        state: vpcData.status || 'available',
+        region: vpcData.Region,
+        owner_id: vpcData.AccountId,
+        tags: {
+          Name: vpcData.Name,
+          Environment: vpcData['ENV Name']?.replace('\r', ''),
+          Tenant: vpcData.Tenant,
+          Site: vpcData.Site
+        },
+        is_default: vpcData.IsDefault === 'True',
+        created_at: vpcData.created_time,
+        
+        // All original database fields for comprehensive display
+        AccountId: vpcData.AccountId,
+        Region: vpcData.Region,
+        VpcId: vpcData.VpcId,
+        CidrBlock: vpcData.CidrBlock,
+        IsDefault: vpcData.IsDefault,
+        Name: vpcData.Name,
+        'ENV Name': vpcData['ENV Name']?.replace('\r', ''),
+        Tenant: vpcData.Tenant,
+        Site: vpcData.Site,
+        status: vpcData.status,
+        created_time: vpcData.created_time,
+        termindated_time: vpcData.termindated_time
+      };
+    });
+
+    res.json({
+      success: true,
+      data: vpcList,
+      total: vpcList.length,
+      message: `Found ${vpcList.length} VPCs from database`,
+      source: 'database'
+    });
+  } catch (error) {
+    console.error('Database error, falling back to mock data:', error.message);
+    
+    // Fallback to mock data
+    const mockVpcs = [
+      {
+        id: 1,
+        vpc_id: 'vpc-12345678',
+        cidr_block: '10.0.0.0/16',
+        state: 'available',
+        region: 'us-east-1',
+        owner_id: '123456789012',
+        tags: { Name: 'Production VPC', Environment: 'prod' },
+        is_default: false,
+        instance_tenancy: 'default',
+        dhcp_options_id: 'dopt-12345678',
+        created_at: new Date('2024-01-15T10:00:00Z'),
+        updated_at: new Date('2024-01-15T10:00:00Z')
+      },
+      {
+        id: 2,
+        vpc_id: 'vpc-87654321',
+        cidr_block: '10.1.0.0/16',
+        state: 'available',
+        region: 'us-west-2',
+        owner_id: '123456789012',
+        tags: { Name: 'Development VPC', Environment: 'dev' },
+        is_default: false,
+        instance_tenancy: 'default',
+        dhcp_options_id: 'dopt-87654321',
+        created_at: new Date('2024-01-10T09:00:00Z'),
+        updated_at: new Date('2024-01-10T09:00:00Z')
+      }
+    ];
+    
+    res.json({
+      success: true,
+      data: mockVpcs,
+      total: mockVpcs.length,
+      message: `Found ${mockVpcs.length} VPCs from mock data (database unavailable)`,
+      source: 'mock'
+    });
+  }
+});
+
+// VPC by ID endpoint
+app.get('/api/vpcs/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const vpc = await VpcInfo.findByPk(id);
+
+    if (!vpc) {
+      return res.status(404).json({
+        success: false,
+        message: 'VPC not found'
+      });
+    }
+
+    const vpcData = vpc.toJSON();
+    try {
+      if (vpcData.tags) {
+        vpcData.tags = JSON.parse(vpcData.tags);
+      }
+    } catch (e) {
+      // If tags aren't JSON, leave as string
+    }
+
+    res.json({
+      success: true,
+      data: vpcData
+    });
+  } catch (error) {
+    console.error('Error fetching VPC:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching VPC',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
 });
 
 // Error handling middleware
@@ -81,4 +324,4 @@ async function startServer() {
   }
 }
 
-startServer();
+startServer(); 

@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { ConfigProvider } from 'antd'
-import App from './App'
+import MinimalApp from './MinimalApp'
 import { cmdbTheme } from '@styles/theme'
 import { QueryProvider } from '@/contexts/QueryProvider'
 import '@styles/global.css'
@@ -15,7 +15,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryProvider>
       <ConfigProvider theme={cmdbTheme}>
-        <App />
+        <MinimalApp />
       </ConfigProvider>
     </QueryProvider>
   </React.StrictMode>,

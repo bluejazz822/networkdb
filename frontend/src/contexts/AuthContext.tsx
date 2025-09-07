@@ -286,6 +286,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     token: state.token,
     isAuthenticated: state.isAuthenticated,
     isLoading: state.isLoading,
+    error: state.error,
     login,
     register,
     logout,

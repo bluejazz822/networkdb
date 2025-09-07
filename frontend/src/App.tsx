@@ -34,75 +34,121 @@ function App() {
           <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
           
-          {/* Protected routes */}
-          <Route path="/" element={
+          {/* Root redirect */}
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          
+          {/* User profile (requires authentication only) */}
+          <Route path="/profile" element={
             <AuthGuard>
               <Layout style={{ minHeight: '100vh' }}>
                 <MainLayout>
-                  <Routes>
-                    <Route index element={<Navigate to="/dashboard" replace />} />
-                    
-                    {/* User profile (requires authentication only) */}
-                    <Route path="/profile" element={<ProfilePage />} />
-                    
-                    {/* Dashboard (requires dashboard read permission) */}
-                    <Route path="/dashboard" element={
-                      <ProtectedRoute permission={PERMISSIONS.DASHBOARD_READ}>
-                        <Dashboard />
-                      </ProtectedRoute>
-                    } />
-                    
-                    {/* Network resource routes (require network read permission) */}
-                    <Route path="/devices" element={
-                      <ProtectedRoute permission={PERMISSIONS.NETWORK_READ}>
-                        <NetworkDevices />
-                      </ProtectedRoute>
-                    } />
-                    
-                    <Route path="/vpcs" element={
-                      <ProtectedRoute permission={PERMISSIONS.VPC_READ}>
-                        <VPCs />
-                      </ProtectedRoute>
-                    } />
-                    
-                    <Route path="/subnets" element={
-                      <ProtectedRoute permission={PERMISSIONS.NETWORK_READ}>
-                        <Subnets />
-                      </ProtectedRoute>
-                    } />
-                    
-                    <Route path="/transit-gateways" element={
-                      <ProtectedRoute permission={PERMISSIONS.NETWORK_READ}>
-                        <TransitGateways />
-                      </ProtectedRoute>
-                    } />
-                    
-                    {/* Admin routes */}
-                    <Route path="/admin/users" element={
-                      <ProtectedRoute permission={PERMISSIONS.USER_READ}>
-                        <UserManagementPage />
-                      </ProtectedRoute>
-                    } />
-                    
-                    <Route path="/admin/roles" element={
-                      <ProtectedRoute permission={PERMISSIONS.ROLE_READ}>
-                        <RoleManagementPage />
-                      </ProtectedRoute>
-                    } />
-                    
-                    <Route path="/admin/security" element={
-                      <ProtectedRoute permission={PERMISSIONS.SYSTEM_READ}>
-                        <SecurityDashboard />
-                      </ProtectedRoute>
-                    } />
-                    
-                    {/* Catch-all redirect */}
-                    <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                  </Routes>
+                  <ProfilePage />
                 </MainLayout>
               </Layout>
             </AuthGuard>
           } />
+          
+          {/* Dashboard (requires dashboard read permission) */}
+          <Route path="/dashboard" element={
+            <AuthGuard>
+              <ProtectedRoute permission={PERMISSIONS.DASHBOARD_READ}>
+                <Layout style={{ minHeight: '100vh' }}>
+                  <MainLayout>
+                    <Dashboard />
+                  </MainLayout>
+                </Layout>
+              </ProtectedRoute>
+            </AuthGuard>
+          } />
+          
+          {/* Network resource routes (require network read permission) */}
+          <Route path="/devices" element={
+            <AuthGuard>
+              <ProtectedRoute permission={PERMISSIONS.NETWORK_READ}>
+                <Layout style={{ minHeight: '100vh' }}>
+                  <MainLayout>
+                    <NetworkDevices />
+                  </MainLayout>
+                </Layout>
+              </ProtectedRoute>
+            </AuthGuard>
+          } />
+          
+          <Route path="/vpcs" element={
+            <AuthGuard>
+              <ProtectedRoute permission={PERMISSIONS.VPC_READ}>
+                <Layout style={{ minHeight: '100vh' }}>
+                  <MainLayout>
+                    <VPCs />
+                  </MainLayout>
+                </Layout>
+              </ProtectedRoute>
+            </AuthGuard>
+          } />
+          
+          <Route path="/subnets" element={
+            <AuthGuard>
+              <ProtectedRoute permission={PERMISSIONS.NETWORK_READ}>
+                <Layout style={{ minHeight: '100vh' }}>
+                  <MainLayout>
+                    <Subnets />
+                  </MainLayout>
+                </Layout>
+              </ProtectedRoute>
+            </AuthGuard>
+          } />
+          
+          <Route path="/transit-gateways" element={
+            <AuthGuard>
+              <ProtectedRoute permission={PERMISSIONS.NETWORK_READ}>
+                <Layout style={{ minHeight: '100vh' }}>
+                  <MainLayout>
+                    <TransitGateways />
+                  </MainLayout>
+                </Layout>
+              </ProtectedRoute>
+            </AuthGuard>
+          } />
+          
+          {/* Admin routes */}
+          <Route path="/admin/users" element={
+            <AuthGuard>
+              <ProtectedRoute permission={PERMISSIONS.USER_READ}>
+                <Layout style={{ minHeight: '100vh' }}>
+                  <MainLayout>
+                    <UserManagementPage />
+                  </MainLayout>
+                </Layout>
+              </ProtectedRoute>
+            </AuthGuard>
+          } />
+          
+          <Route path="/admin/roles" element={
+            <AuthGuard>
+              <ProtectedRoute permission={PERMISSIONS.ROLE_READ}>
+                <Layout style={{ minHeight: '100vh' }}>
+                  <MainLayout>
+                    <RoleManagementPage />
+                  </MainLayout>
+                </Layout>
+              </ProtectedRoute>
+            </AuthGuard>
+          } />
+          
+          <Route path="/admin/security" element={
+            <AuthGuard>
+              <ProtectedRoute permission={PERMISSIONS.SYSTEM_READ}>
+                <Layout style={{ minHeight: '100vh' }}>
+                  <MainLayout>
+                    <SecurityDashboard />
+                  </MainLayout>
+                </Layout>
+              </ProtectedRoute>
+            </AuthGuard>
+          } />
+          
+          {/* Catch-all redirect */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </Router>
     </AuthProvider>
