@@ -12,7 +12,7 @@ import { ImportService } from '../../services/import-export/ImportService';
 import { ExportService } from '../../services/import-export/ExportService';
 import { FileFormat } from '../../utils/file-processors/types';
 
-const router = Router();
+const router: Router = Router();
 const bulkService = new BulkOperationService();
 const importService = new ImportService();
 const exportService = new ExportService();

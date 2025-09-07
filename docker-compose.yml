@@ -1,0 +1,91 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: network-cmdb-backend:latest
+    container_name: network-cmdb-backend
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      - NODE_ENV=production
+    ports:
+      - "3001:3001"
+    networks:
+      - network-cmdb
+    volumes:
+      - ./logs/backend:/app/logs
+      - ./config/backend:/app/config:ro
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health', (res) => { if (res.statusCode === 200) process.exit(0); else process.exit(1); }).on('error', () => process.exit(1));"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      - database-check
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: network-cmdb-frontend:latest
+    container_name: network-cmdb-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    networks:
+      - network-cmdb
+    volumes:
+      - ./logs/frontend:/var/log/nginx
+      - ./config/frontend:/usr/share/nginx/html/config:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      backend:
+        condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  database-check:
+    image: mysql:8.0
+    container_name: network-cmdb-db-check
+    env_file:
+      - .env.production
+    command: >
+      bash -c "
+        until mysql -h$$DB_HOST -P$$DB_PORT -u$$DB_USER -p$$DB_PASSWORD -e 'SELECT 1' >/dev/null 2>&1; do
+          echo 'Waiting for database connection...'
+          sleep 5
+        done
+        echo 'Database is ready!'
+      "
+    networks:
+      - network-cmdb
+    restart: "no"
+
+networks:
+  network-cmdb:
+    driver: bridge
+    name: network-cmdb-network
+
+volumes:
+  backend-logs:
+    driver: local
+  frontend-logs:
+    driver: local

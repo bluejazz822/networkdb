@@ -13,7 +13,7 @@ import bulkRoutes from './bulk';
 import searchRoutes from './search';
 import reportsRoutes from './reports';
 
-const router: Router = Router();
+const router = Router();
 
 // Health check endpoint
 router.get('/health', (req, res) => {

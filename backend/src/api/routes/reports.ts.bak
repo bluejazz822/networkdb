@@ -22,7 +22,7 @@ import {
 import { ResourceType } from '../../types/search';
 import { sequelize } from '../../config/database';
 
-const router: Router = Router();
+const router = Router();
 
 // Initialize services
 const reportingService = new ReportingService(sequelize);

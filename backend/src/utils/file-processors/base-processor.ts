@@ -3,7 +3,8 @@
  * Provides common functionality for all file processors
  */
 
-const jschardet = require('jschardet');
+import jschardet from 'jschardet';
+import crypto from 'crypto';
 import {
   FileMetadata,
   FileProcessingOptions,
@@ -277,7 +278,6 @@ export abstract class BaseFileProcessor {
    * Generate a checksum for file content validation
    */
   protected generateChecksum(buffer: Buffer): string {
-    const crypto = require('crypto');
     return crypto.createHash('sha256').update(buffer).digest('hex');
   }
 

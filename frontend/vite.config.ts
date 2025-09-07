@@ -31,16 +31,7 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          antd: ['antd', '@ant-design/icons', '@ant-design/colors'],
-          utils: ['axios', 'dayjs', 'lodash']
-        }
-      }
-    }
+    sourcemap: true
   },
   css: {
     preprocessorOptions: {

@@ -9,7 +9,7 @@ import { ServiceFactory } from '../../services';
 import { NetworkValidationSchemas, baseQueryParamsSchema } from '../../schemas';
 import { validateRequest, asyncHandler } from '../middleware/validation';
 
-const router = Router();
+const router: Router = Router();
 const customerGatewayService = ServiceFactory.getCustomerGatewayService();
 
 // Parameter validation schemas

@@ -4,7 +4,7 @@
  */
 
 import { createHash } from 'crypto';
-const jschardet = require('jschardet');
+import jschardet from 'jschardet';
 import { FileMetadata, FileProcessingOptions, ValidationError, FileFormat } from './types';
 
 export class FileValidator {

@@ -280,11 +280,97 @@ app.get('/api/vpcs/:id', async (req, res) => {
       success: true,
       data: vpcData
     });
+    return;
   } catch (error) {
     console.error('Error fetching VPC:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching VPC',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// Update VPC endpoint - Admin only editable fields
+app.put('/api/vpcs/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { Name, 'ENV Name': envName, Tenant, Site } = req.body;
+
+    console.log(`Updating VPC ${id} with data:`, { Name, envName, Tenant, Site });
+
+    // Find the VPC record
+    const vpc = await VpcInfo.findByPk(id);
+    if (!vpc) {
+      return res.status(404).json({
+        success: false,
+        message: 'VPC not found'
+      });
+    }
+
+    // Update only the editable fields
+    const updateData: any = {};
+    if (Name !== undefined) updateData.Name = Name;
+    if (envName !== undefined) updateData['ENV Name'] = envName;
+    if (Tenant !== undefined) updateData.Tenant = Tenant;
+    if (Site !== undefined) updateData.Site = Site;
+
+    console.log(`Executing update for VPC ${id}:`, updateData);
+
+    // Perform the update
+    await vpc.update(updateData);
+
+    // Fetch the updated record to return
+    const updatedVpc = await VpcInfo.findByPk(id);
+    const vpcData = updatedVpc?.toJSON();
+
+    // Transform the data similar to the GET endpoint
+    const responseData = {
+      // Standard format for compatibility
+      id: vpcData.VpcId,
+      vpc_id: vpcData.VpcId,
+      cidr_block: vpcData.CidrBlock,
+      state: vpcData.status || 'available',
+      region: vpcData.Region,
+      owner_id: vpcData.AccountId,
+      tags: {
+        Name: vpcData.Name,
+        Environment: vpcData['ENV Name']?.replace('\r', ''),
+        Tenant: vpcData.Tenant,
+        Site: vpcData.Site
+      },
+      is_default: vpcData.IsDefault === 'True',
+      created_at: vpcData.created_time,
+      
+      // All original database fields
+      AccountId: vpcData.AccountId,
+      Region: vpcData.Region,
+      VpcId: vpcData.VpcId,
+      CidrBlock: vpcData.CidrBlock,
+      IsDefault: vpcData.IsDefault,
+      Name: vpcData.Name,
+      'ENV Name': vpcData['ENV Name']?.replace('\r', ''),
+      Tenant: vpcData.Tenant,
+      Site: vpcData.Site,
+      status: vpcData.status,
+      created_time: vpcData.created_time,
+      termindated_time: vpcData.termindated_time
+    };
+
+    console.log(`VPC ${id} updated successfully`);
+
+    res.json({
+      success: true,
+      data: responseData,
+      message: 'VPC updated successfully'
+    });
+    return;
+
+  } catch (error) {
+    console.error('Error updating VPC:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating VPC',
       error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }

@@ -24,7 +24,7 @@ import {
   ResourceType 
 } from '../../types/search';
 
-const router: Router = Router();
+const router = Router();
 
 // Initialize search service
 const searchService = new SearchService(

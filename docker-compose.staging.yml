@@ -1,0 +1,91 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: network-cmdb-backend:staging
+    container_name: network-cmdb-backend-staging
+    restart: unless-stopped
+    env_file:
+      - .env.staging
+    environment:
+      - NODE_ENV=staging
+    ports:
+      - "3002:3001"
+    networks:
+      - network-cmdb-staging
+    volumes:
+      - ./logs/staging/backend:/app/logs
+      - ./config/staging/backend:/app/config:ro
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health', (res) => { if (res.statusCode === 200) process.exit(0); else process.exit(1); }).on('error', () => process.exit(1));"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      - database-check-staging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: network-cmdb-frontend:staging
+    container_name: network-cmdb-frontend-staging
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    networks:
+      - network-cmdb-staging
+    volumes:
+      - ./logs/staging/frontend:/var/log/nginx
+      - ./config/staging/frontend:/usr/share/nginx/html/config:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      backend:
+        condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  database-check-staging:
+    image: mysql:8.0
+    container_name: network-cmdb-db-check-staging
+    env_file:
+      - .env.staging
+    command: >
+      bash -c "
+        until mysql -h$$DB_HOST -P$$DB_PORT -u$$DB_USER -p$$DB_PASSWORD -e 'SELECT 1' >/dev/null 2>&1; do
+          echo 'Waiting for database connection...'
+          sleep 5
+        done
+        echo 'Database is ready!'
+      "
+    networks:
+      - network-cmdb-staging
+    restart: "no"
+
+networks:
+  network-cmdb-staging:
+    driver: bridge
+    name: network-cmdb-staging-network
+
+volumes:
+  backend-logs-staging:
+    driver: local
+  frontend-logs-staging:
+    driver: local

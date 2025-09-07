@@ -284,7 +284,7 @@ export class CsvProcessor extends BaseFileProcessor implements FileProcessor<Net
         callback(null, result);
       }.bind(this),
       
-      flush(callback) {
+      flush: function(callback) {
         // Final progress update
         if (onProgress) {
           const currentTime = Date.now();

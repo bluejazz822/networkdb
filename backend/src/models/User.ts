@@ -1,8 +1,9 @@
 import { DataTypes, Model, Optional, Association, HasManyGetAssociationsMixin } from 'sequelize';
 import { getDatabase } from '../config/database';
+import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 
 const sequelize = getDatabase();
-import bcrypt from 'bcrypt';
 
 /**
  * User attributes interface
@@ -131,7 +132,6 @@ export class User extends Model<UserAttributes, UserCreationAttributes>
    * Generate password reset token
    */
   public generatePasswordResetToken(): string {
-    const crypto = require('crypto');
     const token = crypto.randomBytes(32).toString('hex');
     this.passwordResetToken = token;
     this.passwordResetExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
@@ -142,7 +142,6 @@ export class User extends Model<UserAttributes, UserCreationAttributes>
    * Generate email verification token
    */
   public generateEmailVerificationToken(): string {
-    const crypto = require('crypto');
     const token = crypto.randomBytes(32).toString('hex');
     this.emailVerificationToken = token;
     this.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours

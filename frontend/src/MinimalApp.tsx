@@ -1,22 +1,43 @@
 import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
-import { Layout, Menu, Typography, Card, Row, Col, Statistic } from 'antd'
+import { Layout, Menu, Typography, Card, Row, Col, Statistic, Button, Space, Tag, Avatar, Dropdown } from 'antd'
 import { 
   DashboardOutlined, 
   CloudServerOutlined, 
   GlobalOutlined, 
   PartitionOutlined,
-  BranchesOutlined 
+  BranchesOutlined,
+  UserOutlined,
+  LogoutOutlined,
+  CrownOutlined,
+  EyeOutlined
 } from '@ant-design/icons'
 import VPCTable from './components/VPCTable'
+import LoginForm from './components/LoginForm'
+import { AuthProvider, useAuth } from './contexts/AuthContext'
 
 const { Header, Sider, Content } = Layout
 const { Title } = Typography
 
+interface VPCData {
+  VpcId?: string;
+  vpc_id?: string;
+  Region?: string;
+  region?: string;
+  CidrBlock?: string;
+  cidr_block?: string;
+  AccountId?: string;
+  owner_id?: string;
+  Name?: string;
+  'ENV Name'?: string;
+  tags?: { Environment?: string };
+  state?: string;
+}
+
 function MinimalDashboard() {
-  const [vpcData, setVpcData] = React.useState([]);
+  const [vpcData, setVpcData] = React.useState<VPCData[]>([]);
   const [loading, setLoading] = React.useState(false);
-  const [lastUpdated, setLastUpdated] = React.useState(null);
+  const [lastUpdated, setLastUpdated] = React.useState<Date | null>(null);
 
   const fetchVPCs = React.useCallback(async () => {
     setLoading(true);
@@ -186,7 +207,43 @@ function MinimalPage({ title, description }: { title: string; description: strin
   )
 }
 
-function MinimalApp() {
+function UserHeader() {
+  const { user, logout } = useAuth()
+
+  const handleLogout = () => {
+    logout()
+  }
+
+  const userMenuItems = [
+    {
+      key: 'logout',
+      icon: <LogoutOutlined />,
+      label: 'Logout',
+      onClick: handleLogout
+    }
+  ]
+
+  return (
+    <Space>
+      <Tag 
+        color={user?.role === 'admin' ? 'gold' : 'blue'} 
+        icon={user?.role === 'admin' ? <CrownOutlined /> : <EyeOutlined />}
+      >
+        {user?.role === 'admin' ? 'Admin' : 'User'}
+      </Tag>
+      <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+        <Button type="text" style={{ color: '#666' }}>
+          <Space>
+            <Avatar size={24} icon={<UserOutlined />} />
+            {user?.username}
+          </Space>
+        </Button>
+      </Dropdown>
+    </Space>
+  )
+}
+
+function AuthenticatedApp() {
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -259,11 +316,13 @@ function MinimalApp() {
           padding: '0 24px',
           display: 'flex',
           alignItems: 'center',
+          justifyContent: 'space-between',
           borderBottom: '1px solid #f0f0f0'
         }}>
           <Title level={4} style={{ margin: 0 }}>
             Network Configuration Management Database
           </Title>
+          <UserHeader />
         </Header>
         <Content style={{ background: '#f5f5f5' }}>
           <Routes>
@@ -290,10 +349,22 @@ function MinimalApp() {
   )
 }
 
+function MinimalApp() {
+  const { isAuthenticated } = useAuth()
+
+  if (!isAuthenticated) {
+    return <LoginForm />
+  }
+
+  return <AuthenticatedApp />
+}
+
 function App() {
   return (
     <Router>
-      <MinimalApp />
+      <AuthProvider>
+        <MinimalApp />
+      </AuthProvider>
     </Router>
   )
 }

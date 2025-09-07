@@ -1,490 +1,321 @@
-# Claude Code PM
+# Network CMDB - Configuration Management Database
 
-[![Automaze](https://img.shields.io/badge/By-automaze.io-4b3baf)](https://automaze.io)
-&nbsp;
-[![Claude Code](https://img.shields.io/badge/+-Claude%20Code-d97757)](https://github.com/automazeio/ccpm/blob/main/README.md)
-[![GitHub Issues](https://img.shields.io/badge/+-GitHub%20Issues-1f2328)](https://github.com/automazeio/ccpm)
-&nbsp;
-[![MIT License](https://img.shields.io/badge/License-MIT-28a745)](https://github.com/automazeio/ccpm/blob/main/LICENSE)
-&nbsp;
-[![Follow on 𝕏](https://img.shields.io/badge/𝕏-@aroussi-1c9bf0)](http://x.com/intent/follow?screen_name=aroussi)
-&nbsp;
-[![Star this repo](https://img.shields.io/badge/★-Star%20this%20repo-e7b10b)](https://github.com/automazeio/ccpm)
+A modern, web-based Configuration Management Database (CMDB) for network infrastructure management. Built with React, Node.js, and MySQL, designed for enterprise network teams.
 
-### Claude Code workflow to ship ~~faster~~ _better_ using spec-driven development, GitHub issues, Git worktrees, and mutiple AI agents running in parallel.
+![Network CMDB Dashboard](https://img.shields.io/badge/Status-Production%20Ready-green)
+![Docker Support](https://img.shields.io/badge/Docker-Supported-blue)
+![License](https://img.shields.io/badge/License-MIT-yellow)
 
-Stop losing context. Stop blocking on tasks. Stop shipping bugs. This battle-tested system turns PRDs into epics, epics into GitHub issues, and issues into production code – with full traceability at every step.
+## Features
 
-![Claude Code PM](screenshot.webp)
+- 🏗️ **VPC Management**: Full CRUD operations for AWS VPC inventory
+- 👤 **Role-Based Access**: Admin and user roles with different permissions
+- 📊 **Real-time Updates**: Auto-refresh capability with live data synchronization
+- 📄 **Export Capabilities**: Export to CSV, Excel, and PDF formats
+- 🔒 **Secure Authentication**: Built-in user management with session handling
+- 🐳 **Docker Ready**: Full containerization with docker-compose deployment
+- 🎨 **Modern UI**: Clean, responsive interface built with Ant Design
+- ⚡ **Fast Performance**: Optimized for large datasets with pagination
 
-## Table of Contents
+## Demo Accounts
 
-- [Background](#background)
-- [The Workflow](#the-workflow)
-- [What Makes This Different?](#what-makes-this-different)
-- [Why GitHub Issues?](#why-github-issues)
-- [Core Principle: No Vibe Coding](#core-principle-no-vibe-coding)
-- [System Architecture](#system-architecture)
-- [Workflow Phases](#workflow-phases)
-- [Command Reference](#command-reference)
-- [The Parallel Execution System](#the-parallel-execution-system)
-- [Key Features & Benefits](#key-features--benefits)
-- [Proven Results](#proven-results)
-- [Example Flow](#example-flow)
-- [Get Started Now](#get-started-now)
-- [Local vs Remote](#local-vs-remote)
-- [Technical Notes](#technical-notes)
-- [Support This Project](#support-this-project)
+The system comes with pre-configured demo accounts for testing:
 
-## Background
+| Role | Username | Password | Permissions |
+|------|----------|----------|-------------|
+| Admin | `admin` | `admin123` | Full edit permissions |
+| User | `user` | `user123` | Read-only access |
 
-Every team struggles with the same problems:
-- **Context evaporates** between sessions, forcing constant re-discovery
-- **Parallel work creates conflicts** when multiple developers touch the same code
-- **Requirements drift** as verbal decisions override written specs
-- **Progress becomes invisible** until the very end
+## Quick Start with Docker
 
-This system solves all of that.
+### Prerequisites
 
-## The Workflow
+- Docker and Docker Compose installed
+- MySQL database accessible (can be local or remote)
 
-```mermaid
-graph LR
-    A[PRD Creation] --> B[Epic Planning]
-    B --> C[Task Decomposition]
-    C --> D[GitHub Sync]
-    D --> E[Parallel Execution]
-```
-
-### See It In Action (60 seconds)
+### Option 1: Automated Setup (Recommended)
 
 ```bash
-# Create a comprehensive PRD through guided brainstorming
-/pm:prd-new memory-system
-
-# Transform PRD into a technical epic with task breakdown
-/pm:prd-parse memory-system
-
-# Push to GitHub and start parallel execution
-/pm:epic-oneshot memory-system
-/pm:issue-start 1235
+git clone <repository-url>
+cd networkdb
+./setup.sh
 ```
 
-## What Makes This Different?
+The setup script will:
+- Check prerequisites
+- Create required directories
+- Set up environment configuration
+- Test database connection
+- Build and start all services
+- Provide access information and helpful commands
 
-| Traditional Development | Claude Code PM System |
-|------------------------|----------------------|
-| Context lost between sessions | **Persistent context** across all work |
-| Serial task execution | **Parallel agents** on independent tasks |
-| "Vibe coding" from memory | **Spec-driven** with full traceability |
-| Progress hidden in branches | **Transparent audit trail** in GitHub |
-| Manual task coordination | **Intelligent prioritization** with `/pm:next` |
+### Option 2: Manual Setup
 
-## Why GitHub Issues?
-
-Most Claude Code workflows operate in isolation – a single developer working with AI in their local environment. This creates a fundamental problem: **AI-assisted development becomes a silo**.
-
-By using GitHub Issues as our database, we unlock something powerful:
-
-### 🤝 **True Team Collaboration**
-- Multiple Claude instances can work on the same project simultaneously
-- Human developers see AI progress in real-time through issue comments
-- Team members can jump in anywhere – the context is always visible
-- Managers get transparency without interrupting flow
-
-### 🔄 **Seamless Human-AI Handoffs**
-- AI can start a task, human can finish it (or vice versa)
-- Progress updates are visible to everyone, not trapped in chat logs
-- Code reviews happen naturally through PR comments
-- No "what did the AI do?" meetings
-
-### 📈 **Scalable Beyond Solo Work**
-- Add team members without onboarding friction
-- Multiple AI agents working in parallel on different issues
-- Distributed teams stay synchronized automatically
-- Works with existing GitHub workflows and tools
-
-### 🎯 **Single Source of Truth**
-- No separate databases or project management tools
-- Issue state is the project state
-- Comments are the audit trail
-- Labels provide organization
-
-This isn't just a project management system – it's a **collaboration protocol** that lets humans and AI agents work together at scale, using infrastructure your team already trusts.
-
-## Core Principle: No Vibe Coding
-
-> **Every line of code must trace back to a specification.**
-
-We follow a strict 5-phase discipline:
-
-1. **🧠 Brainstorm** - Think deeper than comfortable
-2. **📝 Document** - Write specs that leave nothing to interpretation
-3. **📐 Plan** - Architect with explicit technical decisions
-4. **⚡ Execute** - Build exactly what was specified
-5. **📊 Track** - Maintain transparent progress at every step
-
-No shortcuts. No assumptions. No regrets.
-
-## System Architecture
-
-```
-.claude/
-├── CLAUDE.md          # Always-on instructions (copy content to your project's CLAUDE.md file)
-├── agents/            # Task-oriented agents (for context preservation)
-├── commands/          # Command definitions
-│   ├── context/       # Create, update, and prime context
-│   ├── pm/            # ← Project management commands (this system)
-│   └── testing/       # Prime and execute tests (edit this)
-├── context/           # Project-wide context files
-├── epics/             # ← PM's local workspace (place in .gitignore)
-│   └── [epic-name]/   # Epic and related tasks
-│       ├── epic.md    # Implementation plan
-│       ├── [#].md     # Individual task files
-│       └── updates/   # Work-in-progress updates
-├── prds/              # ← PM's PRD files
-├── rules/             # Place any rule files you'd like to reference here
-└── scripts/           # Place any script files you'd like to use here
-```
-
-## Workflow Phases
-
-### 1. Product Planning Phase
+### 1. Clone and Setup
 
 ```bash
-/pm:prd-new feature-name
+git clone <repository-url>
+cd networkdb
 ```
-Launches comprehensive brainstorming to create a Product Requirements Document capturing vision, user stories, success criteria, and constraints.
 
-**Output:** `.claude/prds/feature-name.md`
+### 2. Configure Environment
 
-### 2. Implementation Planning Phase
+Create a `.env.production` file in the root directory:
+
+```env
+# Database Configuration
+DB_HOST=your-mysql-host
+DB_PORT=3306
+DB_NAME=network_cmdb
+DB_USER=your-db-user
+DB_PASSWORD=your-db-password
+
+# Application Settings
+NODE_ENV=production
+JWT_SECRET=your-jwt-secret-key-here
+SESSION_SECRET=your-session-secret-key-here
+
+# Optional: Logging
+LOG_LEVEL=info
+```
+
+### 3. Create Required Directories
 
 ```bash
-/pm:prd-parse feature-name
+mkdir -p logs/backend logs/frontend config/backend config/frontend
 ```
-Transforms PRD into a technical implementation plan with architectural decisions, technical approach, and dependency mapping.
 
-**Output:** `.claude/epics/feature-name/epic.md`
-
-### 3. Task Decomposition Phase
+### 4. Start the Application
 
 ```bash
-/pm:epic-decompose feature-name
+# Build and start all services
+docker compose up --build -d
+
+# Check service status
+docker compose ps
+
+# View logs
+docker compose logs -f
 ```
-Breaks epic into concrete, actionable tasks with acceptance criteria, effort estimates, and parallelization flags.
 
-**Output:** `.claude/epics/feature-name/[task].md`
+### 5. Access the Application
 
-### 4. GitHub Synchronization
+- **Frontend**: http://localhost (port 80)
+- **Backend API**: http://localhost:3001
+- **Health Check**: http://localhost:3001/health
+
+## Development Setup
+
+### Prerequisites
+
+- Node.js 18+ and npm
+- MySQL 8.0+
+
+### Backend Development
 
 ```bash
-/pm:epic-sync feature-name
-# Or for confident workflows:
-/pm:epic-oneshot feature-name
-```
-Pushes epic and tasks to GitHub as issues with appropriate labels and relationships.
+cd backend
 
-### 5. Execution Phase
+# Install dependencies
+npm install
+
+# Configure environment
+cp .env.example .env.development
+# Edit .env.development with your database settings
+
+# Start development server
+npm run dev
+```
+
+The backend will start at http://localhost:3001 with hot reload enabled.
+
+### Frontend Development
 
 ```bash
-/pm:issue-start 1234  # Launch specialized agent
-/pm:issue-sync 1234   # Push progress updates
-/pm:next             # Get next priority task
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
 ```
-Specialized agents implement tasks while maintaining progress updates and an audit trail.
 
-## Command Reference
+The frontend will start at http://localhost:3000 and proxy API requests to the backend.
 
-> [!TIP]
-> Type `/pm:help` for a concise command summary
+### Database Schema
 
-### Initial Setup
-- `/pm:init` - Install dependencies and configure GitHub
+The application expects the following MySQL table structure:
 
-### PRD Commands
-- `/pm:prd-new` - Launch brainstorming for new product requirement
-- `/pm:prd-parse` - Convert PRD to implementation epic
-- `/pm:prd-list` - List all PRDs
-- `/pm:prd-edit` - Edit existing PRD
-- `/pm:prd-status` - Show PRD implementation status
+```sql
+CREATE TABLE vpc_info (
+    id VARCHAR(255) PRIMARY KEY,
+    VpcId VARCHAR(255) NOT NULL,
+    AccountId VARCHAR(255),
+    Region VARCHAR(255),
+    CidrBlock VARCHAR(255),
+    IsDefault VARCHAR(10),
+    Name VARCHAR(255),
+    ENV_Name VARCHAR(255),  -- Note: Column name with underscore
+    Tenant VARCHAR(255),
+    Site VARCHAR(255),
+    status VARCHAR(50),
+    created_time DATETIME,
+    termindated_time DATETIME,  -- Note: Intentionally misspelled in schema
+    tags TEXT
+);
+```
 
-### Epic Commands
-- `/pm:epic-decompose` - Break epic into task files
-- `/pm:epic-sync` - Push epic and tasks to GitHub
-- `/pm:epic-oneshot` - Decompose and sync in one command
-- `/pm:epic-list` - List all epics
-- `/pm:epic-show` - Display epic and its tasks
-- `/pm:epic-close` - Mark epic as complete
-- `/pm:epic-edit` - Edit epic details
-- `/pm:epic-refresh` - Update epic progress from tasks
+## Architecture
 
-### Issue Commands
-- `/pm:issue-show` - Display issue and sub-issues
-- `/pm:issue-status` - Check issue status
-- `/pm:issue-start` - Begin work with specialized agent
-- `/pm:issue-sync` - Push updates to GitHub
-- `/pm:issue-close` - Mark issue as complete
-- `/pm:issue-reopen` - Reopen closed issue
-- `/pm:issue-edit` - Edit issue details
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   React SPA     │    │   Node.js API   │    │   MySQL DB      │
+│  (Port 80)      │◄──►│  (Port 3001)    │◄──►│  (Port 3306)    │
+│                 │    │                 │    │                 │
+│ - Ant Design    │    │ - Express.js    │    │ - vpc_info      │
+│ - Authentication│    │ - Sequelize ORM │    │ - User data     │
+│ - VPC Management│    │ - JWT Auth      │    │                 │
+│ - Export Tools  │    │ - TypeScript    │    │                 │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
 
-### Workflow Commands
-- `/pm:next` - Show next priority issue with epic context
-- `/pm:status` - Overall project dashboard
-- `/pm:standup` - Daily standup report
-- `/pm:blocked` - Show blocked tasks
-- `/pm:in-progress` - List work in progress
+## Production Deployment
 
-### Sync Commands
-- `/pm:sync` - Full bidirectional sync with GitHub
-- `/pm:import` - Import existing GitHub issues
+### Environment Configuration
 
-### Maintenance Commands
-- `/pm:validate` - Check system integrity
-- `/pm:clean` - Archive completed work
-- `/pm:search` - Search across all content
+1. **Database**: Ensure MySQL is properly configured with the required schema
+2. **Security**: Use strong JWT and session secrets
+3. **SSL/TLS**: Configure reverse proxy (nginx) for HTTPS
+4. **Monitoring**: Set up log aggregation and monitoring
 
-## The Parallel Execution System
+### Docker Compose Production
 
-### Issues Aren't Atomic
+```yaml
+# Example production override
+services:
+  frontend:
+    ports:
+      - "443:80"  # Use HTTPS
+    volumes:
+      - /path/to/ssl:/etc/nginx/ssl:ro
+  
+  backend:
+    environment:
+      - NODE_ENV=production
+    volumes:
+      - /path/to/logs:/app/logs
+```
 
-Traditional thinking: One issue = One developer = One task
+### Health Checks
 
-**Reality: One issue = Multiple parallel work streams**
+The system includes built-in health checks:
 
-A single "Implement user authentication" issue isn't one task. It's...
+- **Backend**: `GET /health` - Returns database connectivity status
+- **Frontend**: HTTP 200 response check
+- **Database**: Connection verification before app start
 
-- **Agent 1**: Database tables and migrations
-- **Agent 2**: Service layer and business logic
-- **Agent 3**: API endpoints and middleware
-- **Agent 4**: UI components and forms
-- **Agent 5**: Test suites and documentation
+## API Documentation
 
-All running **simultaneously** in the same worktree.
+### Authentication Endpoints
 
-### The Math of Velocity
+```
+POST /api/auth/login - User authentication
+POST /api/auth/logout - User logout
+GET /api/auth/me - Get current user
+```
 
-**Traditional Approach:**
-- Epic with 3 issues
-- Sequential execution
+### VPC Management Endpoints
 
-**This System:**
-- Same epic with 3 issues
-- Each issue splits into ~4 parallel streams
-- **12 agents working simultaneously**
+```
+GET /api/vpcs - List all VPCs
+GET /api/vpcs/:id - Get VPC by ID
+PUT /api/vpcs/:id - Update VPC (admin only)
+```
 
-We're not assigning agents to issues. We're **leveraging multiple agents** to ship faster.
+### Export Endpoints
 
-### Context Optimization
+```
+GET /api/export/csv - Export VPCs as CSV
+GET /api/export/excel - Export VPCs as Excel
+GET /api/export/pdf - Export VPCs as PDF
+```
 
-**Traditional single-thread approach:**
-- Main conversation carries ALL the implementation details
-- Context window fills with database schemas, API code, UI components
-- Eventually hits context limits and loses coherence
+## Troubleshooting
 
-**Parallel agent approach:**
-- Main thread stays clean and strategic
-- Each agent handles its own context in isolation
-- Implementation details never pollute the main conversation
-- Main thread maintains oversight without drowning in code
+### Common Issues
 
-Your main conversation becomes the conductor, not the orchestra.
+1. **Database Connection Failed**
+   - Check `.env.production` configuration
+   - Verify MySQL server is accessible
+   - Check firewall settings
 
-### GitHub vs Local: Perfect Separation
+2. **Frontend Build Errors**
+   - Ensure Node.js 18+ is installed
+   - Clear node_modules and reinstall: `rm -rf node_modules && npm install`
 
-**What GitHub Sees:**
-- Clean, simple issues
-- Progress updates
-- Completion status
+3. **Docker Build Issues**
+   - Check Docker version compatibility
+   - Ensure sufficient disk space
+   - Try: `docker system prune -a` to clean up
 
-**What Actually Happens Locally:**
-- Issue #1234 explodes into 5 parallel agents
-- Agents coordinate through Git commits
-- Complex orchestration hidden from view
+4. **Permission Errors**
+   - Verify user accounts in database
+   - Check JWT secret configuration
+   - Review authentication middleware logs
 
-GitHub doesn't need to know HOW the work got done – just that it IS done.
-
-### The Command Flow
+### Logs and Debugging
 
 ```bash
-# Analyze what can be parallelized
-/pm:issue-analyze 1234
+# View application logs
+docker compose logs -f backend
+docker compose logs -f frontend
 
-# Launch the swarm
-/pm:epic-start memory-system
+# Access container shell
+docker compose exec backend sh
+docker compose exec frontend sh
 
-# Watch the magic
-# 12 agents working across 3 issues
-# All in: ../epic-memory-system/
-
-# One clean merge when done
-/pm:epic-merge memory-system
+# Database connection test
+docker compose exec backend node -e "console.log('Testing DB connection...')"
 ```
 
-## Key Features & Benefits
+## Contributing
 
-### 🧠 **Context Preservation**
-Never lose project state again. Each epic maintains its own context, agents read from `.claude/context/`, and updates locally before syncing.
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-### ⚡ **Parallel Execution**
-Ship faster with multiple agents working simultaneously. Tasks marked `parallel: true` enable conflict-free concurrent development.
+### Development Guidelines
 
-### 🔗 **GitHub Native**
-Works with tools your team already uses. Issues are the source of truth, comments provide history, and there is no dependency on the Projects API.
+- Use TypeScript for type safety
+- Follow existing code style and conventions
+- Add tests for new features
+- Update documentation for API changes
 
-### 🤖 **Agent Specialization**
-Right tool for every job. Different agents for UI, API, and database work. Each reads requirements and posts updates automatically.
+## Technology Stack
 
-### 📊 **Full Traceability**
-Every decision is documented. PRD → Epic → Task → Issue → Code → Commit. Complete audit trail from idea to production.
+- **Frontend**: React 18, TypeScript, Ant Design, Vite
+- **Backend**: Node.js, Express.js, TypeScript, Sequelize
+- **Database**: MySQL 8.0
+- **Containerization**: Docker, Docker Compose
+- **Authentication**: JWT tokens, session management
+- **Export**: CSV, Excel (xlsx), PDF generation
 
-### 🚀 **Developer Productivity**
-Focus on building, not managing. Intelligent prioritization, automatic context loading, and incremental sync when ready.
+## License
 
-## Proven Results
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-Teams using this system report:
-- **89% less time** lost to context switching – you'll use `/compact` and `/clear` a LOT less
-- **5-8 parallel tasks** vs 1 previously – editing/testing multiple files at the same time
-- **75% reduction** in bug rates – due to the breaking down features into detailed tasks
-- **Up to 3x faster** feature delivery – based on feature size and complexity
+## Support
 
-## Example Flow
+For issues and questions:
 
-```bash
-# Start a new feature
-/pm:prd-new memory-system
-
-# Review and refine the PRD...
-
-# Create implementation plan
-/pm:prd-parse memory-system
-
-# Review the epic...
-
-# Break into tasks and push to GitHub
-/pm:epic-oneshot memory-system
-# Creates issues: #1234 (epic), #1235, #1236 (tasks)
-
-# Start development on a task
-/pm:issue-start 1235
-# Agent begins work, maintains local progress
-
-# Sync progress to GitHub
-/pm:issue-sync 1235
-# Updates posted as issue comments
-
-# Check overall status
-/pm:epic-show memory-system
-```
-
-## Get Started Now
-
-### Quick Setup (2 minutes)
-
-1. **Install this repository into your project**:
-
-   #### Unix/Linux/macOS
-
-   ```bash
-   cd path/to/your/project/
-   curl -sSL https://raw.githubusercontent.com/automazeio/ccpm/main/ccpm.sh | bash
-   # or: wget -qO- https://raw.githubusercontent.com/automazeio/ccpm/main/ccpm.sh | bash
-   ```
-
-   #### Windows (PowerShell)
-   ```bash
-   cd path/to/your/project/
-   iwr -useb https://raw.githubusercontent.com/automazeio/ccpm/main/ccpm.bat | iex
-   ```
-   > ⚠️ **IMPORTANT**: If you already have a `.claude` directory, clone this repository to a different directory and copy the contents of the cloned `.claude` directory to your project's `.claude` directory.
-
-   See full/other installation options in the [installation guide ›](https://github.com/automazeio/ccpm/tree/main/install)
-
-
-2. **Initialize the PM system**:
-   ```bash
-   /pm:init
-   ```
-   This command will:
-   - Install GitHub CLI (if needed)
-   - Authenticate with GitHub
-   - Install [gh-sub-issue extension](https://github.com/yahsan2/gh-sub-issue) for proper parent-child relationships
-   - Create required directories
-   - Update .gitignore
-
-3. **Create `CLAUDE.md`** with your repository information
-   ```bash
-   /init include rules from .claude/CLAUDE.md
-   ```
-   > If you already have a `CLAUDE.md` file, run: `/re-init` to update it with important rules from `.claude/CLAUDE.md`.
-
-4. **Prime the system**:
-   ```bash
-   /context:create
-   ```
-
-
-
-### Start Your First Feature
-
-```bash
-/pm:prd-new your-feature-name
-```
-
-Watch as structured planning transforms into shipped code.
-
-## Local vs Remote
-
-| Operation | Local | GitHub |
-|-----------|-------|--------|
-| PRD Creation | ✅ | — |
-| Implementation Planning | ✅ | — |
-| Task Breakdown | ✅ | ✅ (sync) |
-| Execution | ✅ | — |
-| Status Updates | ✅ | ✅ (sync) |
-| Final Deliverables | — | ✅ |
-
-## Technical Notes
-
-### GitHub Integration
-- Uses **gh-sub-issue extension** for proper parent-child relationships
-- Falls back to task lists if extension not installed
-- Epic issues track sub-task completion automatically
-- Labels provide additional organization (`epic:feature`, `task:feature`)
-
-### File Naming Convention
-- Tasks start as `001.md`, `002.md` during decomposition
-- After GitHub sync, renamed to `{issue-id}.md` (e.g., `1234.md`)
-- Makes it easy to navigate: issue #1234 = file `1234.md`
-
-### Design Decisions
-- Intentionally avoids GitHub Projects API complexity
-- All commands operate on local files first for speed
-- Synchronization with GitHub is explicit and controlled
-- Worktrees provide clean git isolation for parallel work
-- GitHub Projects can be added separately for visualization
+1. Check the [Troubleshooting](#troubleshooting) section
+2. Review Docker logs for error details
+3. Ensure all prerequisites are met
+4. Create an issue with detailed error information
 
 ---
 
-## Support This Project
-
-Claude Code PM was developed at [Automaze](https://automaze.io) **for developers who ship, by developers who ship**.
-
-If Claude Code PM helps your team ship better software:
-
-- ⭐ **[Star this repository](https://github.com/automazeio/ccpm)** to show your support
-- 🐦 **[Follow @aroussi on X](https://x.com/aroussi)** for updates and tips
-
-
----
-
-> [!TIP]
-> **Ship faster with Automaze.** We partner with founders to bring their vision to life, scale their business, and optimize for success.
-> **[Visit Automaze to book a call with me ›](https://automaze.io)**
-
----
-
-## Star History
-
-![Star History Chart](https://api.star-history.com/svg?repos=automazeio/ccpm)
+**Production Ready**: This application has been tested and is ready for production deployment with Docker.

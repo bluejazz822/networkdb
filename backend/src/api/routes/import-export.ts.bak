@@ -10,7 +10,7 @@ import { ImportService, ExportService } from '../../services/import-export';
 import { FileFormat } from '../../utils/file-processors';
 import { validateRequest, asyncHandler } from '../middleware/validation';
 
-const router: Router = Router();
+const router = Router();
 const importService = new ImportService();
 const exportService = new ExportService();
 
