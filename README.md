@@ -101,8 +101,8 @@ docker compose logs -f
 ### 5. Access the Application
 
 - **Frontend**: http://localhost (port 80)
-- **Backend API**: http://localhost:3001
-- **Health Check**: http://localhost:3001/health
+- **Backend API**: http://localhost:3301
+- **Health Check**: http://localhost:3301/health
 
 ## Development Setup
 
@@ -127,7 +127,7 @@ cp .env.example .env.development
 npm run dev
 ```
 
-The backend will start at http://localhost:3001 with hot reload enabled.
+The backend will start at http://localhost:3301 with hot reload enabled.
 
 ### Frontend Development
 

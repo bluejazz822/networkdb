@@ -42,7 +42,7 @@ const sequelize = new Sequelize({
 });
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3301;
 
 // Middleware
 app.use(helmet());

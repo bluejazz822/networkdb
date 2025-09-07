@@ -13,14 +13,14 @@ services:
     environment:
       - NODE_ENV=staging
     ports:
-      - "3002:3001"
+      - "3302:3301"
     networks:
       - network-cmdb-staging
     volumes:
       - ./logs/staging/backend:/app/logs
       - ./config/staging/backend:/app/config:ro
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health', (res) => { if (res.statusCode === 200) process.exit(0); else process.exit(1); }).on('error', () => process.exit(1));"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3301/health', (res) => { if (res.statusCode === 200) process.exit(0); else process.exit(1); }).on('error', () => process.exit(1));"]
       interval: 30s
       timeout: 10s
       retries: 3
