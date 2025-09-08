@@ -23,8 +23,8 @@ The system comes with pre-configured demo accounts for testing:
 
 | Role | Username | Password | Permissions |
 |------|----------|----------|-------------|
-| Admin | `admin` | `admin123` | Full edit permissions |
-| User | `user` | `user123` | Read-only access |
+| Admin | `admin` | `XXXXX` | Full edit permissions |
+| User | `user` | `XXXXX` | Read-only access |
 
 ## Quick Start with Docker
 
