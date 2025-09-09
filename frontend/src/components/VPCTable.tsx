@@ -62,6 +62,7 @@ export default function VPCTable({ autoRefresh = true, refreshInterval = 30000 }
   const [searchText, setSearchText] = useState('')
   const [regionFilter, setRegionFilter] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<string>('')
+  const [tenantFilter, setTenantFilter] = useState<string>('')
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(autoRefresh)
   const [editingRow, setEditingRow] = useState<string | null>(null)
@@ -99,9 +100,10 @@ export default function VPCTable({ autoRefresh = true, refreshInterval = 30000 }
     return () => clearInterval(interval)
   }, [autoRefreshEnabled, refreshInterval, fetchVPCs])
 
-  // Get unique regions for filter
+  // Get unique regions, statuses, and tenants for filters
   const regions = [...new Set(vpcData.map(vpc => vpc.Region).filter(Boolean))]
   const statuses = [...new Set(vpcData.map(vpc => vpc.status).filter(Boolean))]
+  const tenants = [...new Set(vpcData.map(vpc => vpc.Tenant).filter(Boolean))]
 
   // Edit handlers
   const handleEdit = (record: VPCData) => {
@@ -170,12 +172,14 @@ export default function VPCTable({ autoRefresh = true, refreshInterval = 30000 }
       vpc.VpcId.toLowerCase().includes(searchText.toLowerCase()) ||
       vpc.Name?.toLowerCase().includes(searchText.toLowerCase()) ||
       vpc.AccountId?.toLowerCase().includes(searchText.toLowerCase()) ||
-      vpc.CidrBlock?.toLowerCase().includes(searchText.toLowerCase())
+      vpc.CidrBlock?.toLowerCase().includes(searchText.toLowerCase()) ||
+      vpc.Tenant?.toLowerCase().includes(searchText.toLowerCase())
     
     const matchesRegion = !regionFilter || vpc.Region === regionFilter
     const matchesStatus = !statusFilter || vpc.status === statusFilter
+    const matchesTenant = !tenantFilter || vpc.Tenant === tenantFilter
     
-    return matchesSearch && matchesRegion && matchesStatus
+    return matchesSearch && matchesRegion && matchesStatus && matchesTenant
   })
 
   const columns: ColumnsType<VPCData> = [
@@ -440,16 +444,16 @@ export default function VPCTable({ autoRefresh = true, refreshInterval = 30000 }
         </Row>
 
         <Row gutter={16} style={{ marginBottom: 16 }}>
-          <Col span={8}>
+          <Col span={6}>
             <Input
-              placeholder="Search VPCs (ID, Name, Account, CIDR)..."
+              placeholder="Search VPCs (ID, Name, Account, CIDR, Tenant)..."
               prefix={<SearchOutlined />}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               allowClear
             />
           </Col>
-          <Col span={8}>
+          <Col span={6}>
             <Select
               placeholder="Filter by Region"
               style={{ width: '100%' }}
@@ -464,7 +468,7 @@ export default function VPCTable({ autoRefresh = true, refreshInterval = 30000 }
               ))}
             </Select>
           </Col>
-          <Col span={8}>
+          <Col span={6}>
             <Select
               placeholder="Filter by Status"
               style={{ width: '100%' }}
@@ -475,6 +479,21 @@ export default function VPCTable({ autoRefresh = true, refreshInterval = 30000 }
               {statuses.map(status => (
                 <Option key={status} value={status}>
                   <Badge status={status === 'available' ? 'success' : 'default'} text={status} />
+                </Option>
+              ))}
+            </Select>
+          </Col>
+          <Col span={6}>
+            <Select
+              placeholder="Filter by Tenant"
+              style={{ width: '100%' }}
+              value={tenantFilter}
+              onChange={setTenantFilter}
+              allowClear
+            >
+              {tenants.map(tenant => (
+                <Option key={tenant} value={tenant}>
+                  <Tag color="cyan">{tenant}</Tag>
                 </Option>
               ))}
             </Select>
