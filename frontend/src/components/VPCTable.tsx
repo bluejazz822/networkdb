@@ -44,6 +44,7 @@ interface VPCData {
   IsDefault: string
   Name: string
   'ENV Name': string
+  'ENV Type': string
   Tenant: string
   Site: string
   status: string
@@ -63,6 +64,7 @@ export default function VPCTable({ autoRefresh = true, refreshInterval = 30000 }
   const [regionFilter, setRegionFilter] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [tenantFilter, setTenantFilter] = useState<string>('')
+  const [envTypeFilter, setEnvTypeFilter] = useState<string>('')
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(autoRefresh)
   const [editingRow, setEditingRow] = useState<string | null>(null)
@@ -100,10 +102,11 @@ export default function VPCTable({ autoRefresh = true, refreshInterval = 30000 }
     return () => clearInterval(interval)
   }, [autoRefreshEnabled, refreshInterval, fetchVPCs])
 
-  // Get unique regions, statuses, and tenants for filters
+  // Get unique regions, statuses, tenants, and env types for filters
   const regions = [...new Set(vpcData.map(vpc => vpc.Region).filter(Boolean))]
   const statuses = [...new Set(vpcData.map(vpc => vpc.status).filter(Boolean))]
   const tenants = [...new Set(vpcData.map(vpc => vpc.Tenant).filter(Boolean))]
+  const envTypes = [...new Set(vpcData.map(vpc => vpc['ENV Type']).filter(Boolean))]
 
   // Edit handlers
   const handleEdit = (record: VPCData) => {
@@ -178,8 +181,9 @@ export default function VPCTable({ autoRefresh = true, refreshInterval = 30000 }
     const matchesRegion = !regionFilter || vpc.Region === regionFilter
     const matchesStatus = !statusFilter || vpc.status === statusFilter
     const matchesTenant = !tenantFilter || vpc.Tenant === tenantFilter
+    const matchesEnvType = !envTypeFilter || vpc['ENV Type'] === envTypeFilter
     
-    return matchesSearch && matchesRegion && matchesStatus && matchesTenant
+    return matchesSearch && matchesRegion && matchesStatus && matchesTenant && matchesEnvType
   })
 
   const columns: ColumnsType<VPCData> = [
@@ -285,6 +289,19 @@ export default function VPCTable({ autoRefresh = true, refreshInterval = 30000 }
             </Tag>
           </div>
         )
+      },
+    },
+    {
+      title: 'Env Type',
+      dataIndex: 'ENV Type',
+      key: 'ENV Type',
+      width: 120,
+      render: (text) => {
+        if (!text) return <Text type="secondary">N/A</Text>
+        const color = text.includes('prod') ? 'red' : 
+                     text.includes('dev') ? 'orange' : 
+                     text.includes('test') ? 'purple' : 'blue'
+        return <Tag color={color}>{text}</Tag>
       },
     },
     {
@@ -465,7 +482,7 @@ export default function VPCTable({ autoRefresh = true, refreshInterval = 30000 }
         </Row>
 
         <Row gutter={16} style={{ marginBottom: 16 }}>
-          <Col span={6}>
+          <Col span={5}>
             <Input
               placeholder="Search VPCs (ID, Name, Account, CIDR, Tenant)..."
               prefix={<SearchOutlined />}
@@ -474,7 +491,7 @@ export default function VPCTable({ autoRefresh = true, refreshInterval = 30000 }
               allowClear
             />
           </Col>
-          <Col span={6}>
+          <Col span={5}>
             <Select
               placeholder="Filter by Region"
               style={{ width: '100%' }}
@@ -489,7 +506,7 @@ export default function VPCTable({ autoRefresh = true, refreshInterval = 30000 }
               ))}
             </Select>
           </Col>
-          <Col span={6}>
+          <Col span={4}>
             <Select
               placeholder="Filter by Status"
               style={{ width: '100%' }}
@@ -504,7 +521,7 @@ export default function VPCTable({ autoRefresh = true, refreshInterval = 30000 }
               ))}
             </Select>
           </Col>
-          <Col span={6}>
+          <Col span={5}>
             <Select
               placeholder="Filter by Tenant"
               style={{ width: '100%' }}
@@ -515,6 +532,23 @@ export default function VPCTable({ autoRefresh = true, refreshInterval = 30000 }
               {tenants.map(tenant => (
                 <Option key={tenant} value={tenant}>
                   <Tag color="cyan">{tenant}</Tag>
+                </Option>
+              ))}
+            </Select>
+          </Col>
+          <Col span={5}>
+            <Select
+              placeholder="Filter by Env Type"
+              style={{ width: '100%' }}
+              value={envTypeFilter}
+              onChange={setEnvTypeFilter}
+              allowClear
+            >
+              {envTypes.map(envType => (
+                <Option key={envType} value={envType}>
+                  <Tag color={envType.includes('prod') ? 'red' : envType.includes('dev') ? 'orange' : envType.includes('test') ? 'purple' : 'blue'}>
+                    {envType}
+                  </Tag>
                 </Option>
               ))}
             </Select>

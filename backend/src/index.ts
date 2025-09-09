@@ -85,6 +85,11 @@ const VpcInfo = sequelize.define('vpc_info', {
     allowNull: true,
     field: 'ENV Name'
   },
+  'ENV Type': {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'ENV Type'
+  },
   Tenant: {
     type: DataTypes.STRING,
     allowNull: true
@@ -154,6 +159,7 @@ app.get('/api/vpcs', async (req, res) => {
         'AccountId',
         'Name',
         'ENV Name',
+        'ENV Type',
         'IsDefault',
         'Tenant',
         'created_time'
@@ -188,6 +194,7 @@ app.get('/api/vpcs', async (req, res) => {
         IsDefault: vpcData.IsDefault,
         Name: vpcData.Name,
         'ENV Name': vpcData['ENV Name']?.replace('\r', ''),
+        'ENV Type': vpcData['ENV Type']?.replace('\r', ''),
         Tenant: vpcData.Tenant,
         status: vpcData.status,
         created_time: vpcData.created_time,
