@@ -89,10 +89,6 @@ const VpcInfo = sequelize.define('vpc_info', {
     type: DataTypes.STRING,
     allowNull: true
   },
-  Site: {
-    type: DataTypes.STRING,
-    allowNull: true
-  },
   status: {
     type: DataTypes.STRING,
     allowNull: true
@@ -160,7 +156,6 @@ app.get('/api/vpcs', async (req, res) => {
         'ENV Name',
         'IsDefault',
         'Tenant',
-        'Site',
         'created_time'
       ],
       order: [['created_time', 'DESC']]
@@ -180,8 +175,7 @@ app.get('/api/vpcs', async (req, res) => {
         tags: {
           Name: vpcData.Name,
           Environment: vpcData['ENV Name']?.replace('\r', ''),
-          Tenant: vpcData.Tenant,
-          Site: vpcData.Site
+          Tenant: vpcData.Tenant
         },
         is_default: vpcData.IsDefault === 'True',
         created_at: vpcData.created_time,
@@ -195,7 +189,6 @@ app.get('/api/vpcs', async (req, res) => {
         Name: vpcData.Name,
         'ENV Name': vpcData['ENV Name']?.replace('\r', ''),
         Tenant: vpcData.Tenant,
-        Site: vpcData.Site,
         status: vpcData.status,
         created_time: vpcData.created_time,
         termindated_time: vpcData.termindated_time
@@ -294,9 +287,9 @@ app.get('/api/vpcs/:id', async (req, res) => {
 app.put('/api/vpcs/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { Name, 'ENV Name': envName, Tenant, Site } = req.body;
+    const { Name, 'ENV Name': envName, Tenant } = req.body;
 
-    console.log(`Updating VPC ${id} with data:`, { Name, envName, Tenant, Site });
+    console.log(`Updating VPC ${id} with data:`, { Name, envName, Tenant });
 
     // Find the VPC record
     const vpc = await VpcInfo.findByPk(id);
@@ -312,7 +305,6 @@ app.put('/api/vpcs/:id', async (req, res) => {
     if (Name !== undefined) updateData.Name = Name;
     if (envName !== undefined) updateData['ENV Name'] = envName;
     if (Tenant !== undefined) updateData.Tenant = Tenant;
-    if (Site !== undefined) updateData.Site = Site;
 
     console.log(`Executing update for VPC ${id}:`, updateData);
 
@@ -335,8 +327,7 @@ app.put('/api/vpcs/:id', async (req, res) => {
       tags: {
         Name: vpcData.Name,
         Environment: vpcData['ENV Name']?.replace('\r', ''),
-        Tenant: vpcData.Tenant,
-        Site: vpcData.Site
+        Tenant: vpcData.Tenant
       },
       is_default: vpcData.IsDefault === 'True',
       created_at: vpcData.created_time,
@@ -350,7 +341,6 @@ app.put('/api/vpcs/:id', async (req, res) => {
       Name: vpcData.Name,
       'ENV Name': vpcData['ENV Name']?.replace('\r', ''),
       Tenant: vpcData.Tenant,
-      Site: vpcData.Site,
       status: vpcData.status,
       created_time: vpcData.created_time,
       termindated_time: vpcData.termindated_time
