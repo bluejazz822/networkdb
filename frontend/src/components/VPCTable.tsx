@@ -247,7 +247,7 @@ export default function VPCTable({ autoRefresh = true, refreshInterval = 30000 }
       title: 'Environment',
       dataIndex: 'ENV Name',
       key: 'ENV Name',
-      width: 180,
+      width: 200,
       render: (text, record) => {
         if (editingRow === record.VpcId) {
           return (
@@ -263,7 +263,28 @@ export default function VPCTable({ autoRefresh = true, refreshInterval = 30000 }
         const color = text.includes('prod') ? 'red' : 
                      text.includes('dev') ? 'orange' : 
                      text.includes('test') ? 'purple' : 'default'
-        return <Tag color={color}>{text}</Tag>
+        return (
+          <div style={{ 
+            wordBreak: 'break-word', 
+            whiteSpace: 'pre-wrap',
+            lineHeight: '1.2',
+            maxWidth: '180px'
+          }}>
+            <Tag 
+              color={color}
+              style={{ 
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                maxWidth: '100%',
+                height: 'auto',
+                padding: '2px 8px',
+                lineHeight: '1.3'
+              }}
+            >
+              {text}
+            </Tag>
+          </div>
+        )
       },
     },
     {
