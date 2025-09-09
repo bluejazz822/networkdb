@@ -149,22 +149,25 @@ The application expects the following MySQL table structure:
 
 ```sql
 CREATE TABLE vpc_info (
-    id VARCHAR(255) PRIMARY KEY,
-    VpcId VARCHAR(255) NOT NULL,
+    VpcId VARCHAR(255) PRIMARY KEY,
     AccountId VARCHAR(255),
     Region VARCHAR(255),
     CidrBlock VARCHAR(255),
     IsDefault VARCHAR(10),
     Name VARCHAR(255),
-    ENV_Name VARCHAR(255),  -- Note: Column name with underscore
+    `ENV Name` VARCHAR(255),  -- Note: Column name with space (use backticks)
     Tenant VARCHAR(255),
-    Site VARCHAR(255),
     status VARCHAR(50),
     created_time DATETIME,
-    termindated_time DATETIME,  -- Note: Intentionally misspelled in schema
-    tags TEXT
+    termindated_time DATETIME  -- Note: Intentionally misspelled in schema
 );
 ```
+
+**Schema Notes:**
+- Primary key is `VpcId` (not `id`)
+- Column name `ENV Name` contains a space and must be quoted in queries
+- The `termindated_time` typo is preserved for compatibility
+- The `Site` column has been removed from the working schema
 
 ## Architecture
 
@@ -182,12 +185,85 @@ CREATE TABLE vpc_info (
 
 ## Production Deployment
 
+### Security Secret Management
+
+**Generate New JWT and Session Secrets**
+
+For production deployment, you must generate secure secrets. Never use the default placeholder values.
+
+```bash
+# Generate JWT secret (64 characters)
+openssl rand -hex 32
+
+# Generate Session secret (64 characters)  
+openssl rand -hex 32
+```
+
+**Update Environment Configuration**
+
+Replace the `XXXXXX` placeholders in `.env.production`:
+
+```env
+# Security Configuration (REQUIRED - Replace with generated secrets)
+JWT_SECRET=your-generated-jwt-secret-here
+SESSION_SECRET=your-generated-session-secret-here
+```
+
+**⚠️ Security Warning**: The `.env.production` file contains placeholder values (`XXXXXX`) for security reasons. You MUST replace these with your actual database password and generated secrets before deployment.
+
 ### Environment Configuration
 
 1. **Database**: Ensure MySQL is properly configured with the required schema
-2. **Security**: Use strong JWT and session secrets
+2. **Security**: Generate strong JWT and session secrets (see above)
 3. **SSL/TLS**: Configure reverse proxy (nginx) for HTTPS
 4. **Monitoring**: Set up log aggregation and monitoring
+
+### Complete Production Setup Steps
+
+1. **Clone and configure**:
+```bash
+git clone <repository-url>
+cd networkdb
+```
+
+2. **Update environment secrets**:
+```bash
+# Generate secrets
+JWT_SECRET=$(openssl rand -hex 32)
+SESSION_SECRET=$(openssl rand -hex 32)
+
+# Update .env.production with your actual values
+sed -i "s/DB_PASSWORD=XXXXXX/DB_PASSWORD=your-actual-db-password/" .env.production
+sed -i "s/JWT_SECRET=XXXXXX/JWT_SECRET=$JWT_SECRET/" .env.production
+sed -i "s/SESSION_SECRET=XXXXXX/SESSION_SECRET=$SESSION_SECRET/" .env.production
+```
+
+3. **Deploy with Docker**:
+```bash
+# Build and start services
+docker compose up --build -d
+
+# Verify deployment
+docker compose ps
+curl http://localhost:3301/health
+```
+
+4. **Verify database connection**:
+```bash
+# Check backend logs for successful database connection
+docker compose logs backend | grep "Database connection established"
+```
+
+### Updating Secrets After Deployment
+
+If you need to rotate secrets or update database credentials:
+
+1. **Update `.env.production`** with new values
+2. **Rebuild backend container** to pick up new environment variables:
+```bash
+docker compose up --build backend -d
+```
+3. **No frontend rebuild needed** unless frontend configuration changes
 
 ### Docker Compose Production
 
@@ -249,20 +325,40 @@ GET /api/export/pdf - Export VPCs as PDF
    - Check `.env.production` configuration
    - Verify MySQL server is accessible
    - Check firewall settings
+   - Ensure database credentials are not placeholder values (`XXXXXX`)
 
-2. **Frontend Build Errors**
+2. **Database Schema Mismatch**
+   ```
+   Error: Unknown column 'Site' in 'field list'
+   ```
+   - Ensure your database schema matches the expected structure (see Database Schema section)
+   - The `Site` column is not used in the current version
+   - Check that `ENV Name` column exists with space in name
+
+3. **Mock Data Instead of Real Data**
+   - Usually indicates database connection or query issues
+   - Check backend logs: `docker compose logs backend`
+   - Look for "Database connection established successfully" message
+   - Verify API response with: `curl http://localhost:3301/api/vpcs`
+
+4. **Frontend Build Errors**
    - Ensure Node.js 18+ is installed
    - Clear node_modules and reinstall: `rm -rf node_modules && npm install`
 
-3. **Docker Build Issues**
+5. **Docker Build Issues**
    - Check Docker version compatibility
    - Ensure sufficient disk space
    - Try: `docker system prune -a` to clean up
 
-4. **Permission Errors**
+6. **Permission Errors**
    - Verify user accounts in database
    - Check JWT secret configuration
    - Review authentication middleware logs
+
+7. **Environment Variable Issues**
+   - Ensure secrets are generated and not placeholder values
+   - Rebuild backend after updating `.env.production`: `docker compose up --build backend -d`
+   - Check environment variables inside container: `docker compose exec backend printenv | grep DB_`
 
 ### Logs and Debugging
 
