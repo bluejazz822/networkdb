@@ -1,45 +1,19 @@
 /**
  * Network CMDB Backend Entry Point
  * 
- * This is the main entry point for the Network CMDB backend API server.
- * It sets up Express.js server with basic middleware.
+ * Dynamic schema-driven API server that adapts to database changes
+ * without requiring code modifications.
  */
 
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
-import { Sequelize, DataTypes } from 'sequelize';
+import { sequelize, connectToDatabase } from './database';
+import { getTableSchema, createDynamicModel, getColumnUniqueValues } from './utils/schemaUtils';
 
 // Load environment variables
 dotenv.config();
-
-// Database connection
-console.log('🔍 Database connection config:');
-console.log('- Host:', process.env.DB_HOST || 'localhost');
-console.log('- Port:', parseInt(process.env.DB_PORT || '44060'));
-console.log('- Database:', process.env.DB_NAME || 'mydatabase');
-console.log('- Username:', process.env.DB_USER || 'root');
-console.log('- Password:', process.env.DB_PASSWORD ? '***SET***' : 'NOT SET');
-
-const sequelize = new Sequelize({
-  dialect: 'mysql',
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '3306'),
-  database: process.env.DB_NAME || 'mydatabase',
-  username: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD,
-  logging: process.env.NODE_ENV === 'development' ? console.log : false,
-  dialectOptions: {
-    connectTimeout: 10000,
-  },
-  pool: {
-    max: 1,
-    min: 1,
-    acquire: 30000,
-    idle: 10000
-  }
-});
 
 const app = express();
 const PORT = process.env.PORT || 3301;
@@ -53,75 +27,27 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Define VPC model to match your actual vpc_info table structure
-const VpcInfo = sequelize.define('vpc_info', {
-  AccountId: {
-    type: DataTypes.STRING,
-    allowNull: true
-  },
-  Region: {
-    type: DataTypes.STRING,
-    allowNull: true
-  },
-  VpcId: {
-    type: DataTypes.STRING,
-    primaryKey: true,
-    allowNull: false
-  },
-  CidrBlock: {
-    type: DataTypes.STRING,
-    allowNull: true
-  },
-  IsDefault: {
-    type: DataTypes.STRING,
-    allowNull: true
-  },
-  Name: {
-    type: DataTypes.STRING,
-    allowNull: true
-  },
-  'ENV Name': {
-    type: DataTypes.STRING,
-    allowNull: true,
-    field: 'ENV Name'
-  },
-  'ENV Type': {
-    type: DataTypes.STRING,
-    allowNull: true,
-    field: 'ENV Type'
-  },
-  Tenant: {
-    type: DataTypes.STRING,
-    allowNull: true
-  },
-  status: {
-    type: DataTypes.STRING,
-    allowNull: true
-  },
-  created_time: {
-    type: DataTypes.DATE,
-    allowNull: true
-  },
-  termindated_time: {
-    type: DataTypes.DATE,
-    allowNull: true
-  }
-}, {
-  tableName: 'vpc_info',
-  timestamps: false
-});
+// Dynamic model cache
+let VpcInfo: any = null;
 
-// Test database connection
-async function connectToDatabase() {
+// Initialize dynamic model
+async function initializeDynamicModel() {
   try {
-    await sequelize.authenticate();
-    console.log('✅ Database connection established successfully.');
-  } catch (err) {
-    console.error('❌ Unable to connect to database:', err.message);
-    console.log('🔄 Continuing with mock data fallback...');
+    VpcInfo = await createDynamicModel('vpc_info');
+    console.log('✅ Dynamic VPC model created successfully');
+  } catch (error) {
+    console.error('❌ Failed to create dynamic VPC model:', error);
   }
 }
-connectToDatabase();
+
+// Initialize database and dynamic models
+async function initializeDatabase() {
+  const isConnected = await connectToDatabase();
+  if (isConnected) {
+    await initializeDynamicModel();
+  }
+}
+initializeDatabase();
 
 // Health check endpoint
 app.get('/health', async (req, res) => {
@@ -136,80 +62,119 @@ app.get('/health', async (req, res) => {
 // API routes
 app.get('/api', (req, res) => {
   res.json({
-    message: 'Network CMDB Backend API',
-    version: '1.0.0',
+    message: 'Network CMDB Backend API - Dynamic Schema',
+    version: '2.0.0',
     endpoints: {
       health: '/health',
       vpcs: '/api/vpcs',
+      schema: '/api/schema/:table',
+      filters: '/api/filters/:table/:column',
       api: '/api'
     }
   });
 });
 
-// VPCs endpoint with database fallback
+// Schema introspection endpoint
+app.get('/api/schema/:table', async (req, res) => {
+  try {
+    const { table } = req.params;
+    const schema = await getTableSchema(table);
+    
+    res.json({
+      success: true,
+      table,
+      schema,
+      count: schema.length
+    });
+  } catch (error: any) {
+    console.error('Error fetching schema:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch table schema',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// Filter options endpoint
+app.get('/api/filters/:table/:column', async (req, res) => {
+  try {
+    const { table, column } = req.params;
+    const values = await getColumnUniqueValues(table, column);
+    
+    res.json({
+      success: true,
+      table,
+      column,
+      values,
+      count: values.length
+    });
+  } catch (error: any) {
+    console.error('Error fetching filter values:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch filter values',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// Dynamic VPCs endpoint with schema discovery
 app.get('/api/vpcs', async (req, res) => {
   try {
-    // Try database first
+    if (!VpcInfo) {
+      throw new Error('VPC model not initialized');
+    }
+
+    // Get schema for response metadata
+    const schema = await getTableSchema('vpc_info');
+    
+    // Fetch all VPC data (no hardcoded field selection)
     const vpcs = await VpcInfo.findAll({
-      attributes: [
-        'VpcId',
-        'CidrBlock', 
-        'status',
-        'Region',
-        'AccountId',
-        'Name',
-        'ENV Name',
-        'ENV Type',
-        'IsDefault',
-        'Tenant',
-        'created_time'
-      ],
       order: [['created_time', 'DESC']]
     });
 
-    // Transform database fields to frontend format with all original fields
-    const vpcList = vpcs.map(vpc => {
+    // Transform data with clean carriage returns
+    const vpcList = vpcs.map((vpc: any) => {
       const vpcData = vpc.toJSON();
+      const cleanedData: any = {};
+      
+      // Clean all string fields of carriage returns
+      Object.keys(vpcData).forEach(key => {
+        const value = vpcData[key];
+        cleanedData[key] = typeof value === 'string' ? value.replace(/\r/g, '') : value;
+      });
+      
       return {
-        // Standard format for compatibility
-        id: vpcData.VpcId,
-        vpc_id: vpcData.VpcId,
-        cidr_block: vpcData.CidrBlock,
-        state: vpcData.status || 'available',
-        region: vpcData.Region,
-        owner_id: vpcData.AccountId,
+        // Legacy format for compatibility
+        id: cleanedData.VpcId,
+        vpc_id: cleanedData.VpcId,
+        cidr_block: cleanedData.CidrBlock,
+        state: cleanedData.status || 'available',
+        region: cleanedData.Region,
+        owner_id: cleanedData.AccountId,
         tags: {
-          Name: vpcData.Name,
-          Environment: vpcData['ENV Name']?.replace('\r', ''),
-          Tenant: vpcData.Tenant
+          Name: cleanedData.Name,
+          Environment: cleanedData['ENV Name'],
+          Tenant: cleanedData.Tenant
         },
-        is_default: vpcData.IsDefault === 'True',
-        created_at: vpcData.created_time,
+        is_default: cleanedData.IsDefault === 'True',
+        created_at: cleanedData.created_time,
         
-        // All original database fields for comprehensive display
-        AccountId: vpcData.AccountId,
-        Region: vpcData.Region,
-        VpcId: vpcData.VpcId,
-        CidrBlock: vpcData.CidrBlock,
-        IsDefault: vpcData.IsDefault,
-        Name: vpcData.Name,
-        'ENV Name': vpcData['ENV Name']?.replace('\r', ''),
-        'ENV Type': vpcData['ENV Type']?.replace('\r', ''),
-        Tenant: vpcData.Tenant,
-        status: vpcData.status,
-        created_time: vpcData.created_time,
-        termindated_time: vpcData.termindated_time
+        // All database fields (dynamic)
+        ...cleanedData
       };
     });
 
     res.json({
       success: true,
+      schema, // Include schema for frontend
       data: vpcList,
       total: vpcList.length,
       message: `Found ${vpcList.length} VPCs from database`,
       source: 'database'
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Database error, falling back to mock data:', error.message);
     
     // Fallback to mock data
@@ -290,13 +255,21 @@ app.get('/api/vpcs/:id', async (req, res) => {
   }
 });
 
-// Update VPC endpoint - Admin only editable fields
+// Dynamic VPC update endpoint
 app.put('/api/vpcs/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { Name, 'ENV Name': envName, Tenant } = req.body;
+    const updateData = req.body;
 
-    console.log(`Updating VPC ${id} with data:`, { Name, envName, Tenant });
+    console.log(`Updating VPC ${id} with data:`, updateData);
+
+    if (!VpcInfo) {
+      throw new Error('VPC model not initialized');
+    }
+
+    // Get schema to validate editable fields
+    const schema = await getTableSchema('vpc_info');
+    const editableFields = schema.filter(col => col.editable).map(col => col.name);
 
     // Find the VPC record
     const vpc = await VpcInfo.findByPk(id);
@@ -307,50 +280,56 @@ app.put('/api/vpcs/:id', async (req, res) => {
       });
     }
 
-    // Update only the editable fields
-    const updateData: any = {};
-    if (Name !== undefined) updateData.Name = Name;
-    if (envName !== undefined) updateData['ENV Name'] = envName;
-    if (Tenant !== undefined) updateData.Tenant = Tenant;
+    // Filter to only editable fields
+    const filteredUpdateData: any = {};
+    Object.keys(updateData).forEach(key => {
+      if (editableFields.includes(key)) {
+        filteredUpdateData[key] = updateData[key];
+      }
+    });
 
-    console.log(`Executing update for VPC ${id}:`, updateData);
+    if (Object.keys(filteredUpdateData).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No editable fields provided',
+        editableFields
+      });
+    }
+
+    console.log(`Executing update for VPC ${id}:`, filteredUpdateData);
 
     // Perform the update
-    await vpc.update(updateData);
+    await vpc.update(filteredUpdateData);
 
-    // Fetch the updated record to return
+    // Fetch the updated record
     const updatedVpc = await VpcInfo.findByPk(id);
     const vpcData = updatedVpc?.toJSON();
 
-    // Transform the data similar to the GET endpoint
+    // Clean carriage returns from string fields
+    const cleanedData: any = {};
+    Object.keys(vpcData).forEach(key => {
+      const value = vpcData[key];
+      cleanedData[key] = typeof value === 'string' ? value.replace(/\r/g, '') : value;
+    });
+
     const responseData = {
-      // Standard format for compatibility
-      id: vpcData.VpcId,
-      vpc_id: vpcData.VpcId,
-      cidr_block: vpcData.CidrBlock,
-      state: vpcData.status || 'available',
-      region: vpcData.Region,
-      owner_id: vpcData.AccountId,
+      // Legacy format for compatibility
+      id: cleanedData.VpcId,
+      vpc_id: cleanedData.VpcId,
+      cidr_block: cleanedData.CidrBlock,
+      state: cleanedData.status || 'available',
+      region: cleanedData.Region,
+      owner_id: cleanedData.AccountId,
       tags: {
-        Name: vpcData.Name,
-        Environment: vpcData['ENV Name']?.replace('\r', ''),
-        Tenant: vpcData.Tenant
+        Name: cleanedData.Name,
+        Environment: cleanedData['ENV Name'],
+        Tenant: cleanedData.Tenant
       },
-      is_default: vpcData.IsDefault === 'True',
-      created_at: vpcData.created_time,
+      is_default: cleanedData.IsDefault === 'True',
+      created_at: cleanedData.created_time,
       
-      // All original database fields
-      AccountId: vpcData.AccountId,
-      Region: vpcData.Region,
-      VpcId: vpcData.VpcId,
-      CidrBlock: vpcData.CidrBlock,
-      IsDefault: vpcData.IsDefault,
-      Name: vpcData.Name,
-      'ENV Name': vpcData['ENV Name']?.replace('\r', ''),
-      Tenant: vpcData.Tenant,
-      status: vpcData.status,
-      created_time: vpcData.created_time,
-      termindated_time: vpcData.termindated_time
+      // All database fields (dynamic)
+      ...cleanedData
     };
 
     console.log(`VPC ${id} updated successfully`);
@@ -358,10 +337,11 @@ app.put('/api/vpcs/:id', async (req, res) => {
     res.json({
       success: true,
       data: responseData,
-      message: 'VPC updated successfully'
+      message: 'VPC updated successfully',
+      updatedFields: Object.keys(filteredUpdateData)
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating VPC:', error);
     res.status(500).json({
       success: false,
