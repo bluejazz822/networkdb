@@ -193,7 +193,7 @@ export async function getColumnUniqueValues(tableName: string, columnName: strin
       type: QueryTypes.SELECT
     }) as any[]
 
-    return results.map(r => r.value).filter(Boolean)
+    return results.map((r: any) => r.value).filter(Boolean)
   } catch (error) {
     console.error(`Error getting unique values for ${tableName}.${columnName}:`, error)
     return []
