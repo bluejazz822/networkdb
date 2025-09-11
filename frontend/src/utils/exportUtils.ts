@@ -1,7 +1,13 @@
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
+import 'jspdf-autotable'
 import Papa from 'papaparse'
+
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF
+  }
+}
 
 export interface ExportField {
   key: string
@@ -142,7 +148,7 @@ export const exportToPDF = (
     )
     
     // Add table
-    autoTable(doc, {
+    doc.autoTable({
       head: [selectedFieldLabels],
       body: tableRows,
       startY: 35,

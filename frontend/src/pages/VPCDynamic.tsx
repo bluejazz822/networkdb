@@ -6,14 +6,14 @@
  * requires no frontend code changes
  */
 
-import { CloudServerOutlined } from '@ant-design/icons'
 import DynamicTable from '../components/DynamicTable'
+import { CloudServerOutlined } from '@ant-design/icons'
 
 export default function VPCDynamic() {
   return (
-    <DynamicTable
+    <DynamicTable 
       apiEndpoint="/api/vpcs"
-      title="VPC Inventory"
+      title="VPC Management"
       icon={<CloudServerOutlined />}
       autoRefresh={true}
       refreshInterval={30000}

@@ -26,7 +26,6 @@ import {
 import { 
   ReloadOutlined, 
   SearchOutlined,
-  GlobalOutlined,
   CloudServerOutlined,
   EditOutlined,
   SaveOutlined,
@@ -92,8 +91,6 @@ export default function DynamicTable({
         setData(result.data)
         if (result.schema) {
           setSchema(result.schema)
-          // Fetch filter options for filterable columns
-          await fetchFilterOptions(result.schema)
         }
         setLastUpdated(new Date())
       }
@@ -105,19 +102,6 @@ export default function DynamicTable({
     }
   }, [apiEndpoint])
 
-  // Fetch filter options for filterable columns
-  const fetchFilterOptions = useCallback(async (schemaData: ColumnSchema[]) => {
-    const filterableColumns = schemaData.filter(col => col.filterable)
-    const options: Record<string, string[]> = {}
-    
-    for (const col of filterableColumns) {
-      // Extract unique values from current data
-      const uniqueValues = [...new Set(data.map(row => row[col.name]).filter(Boolean))]
-      options[col.name] = uniqueValues.sort()
-    }
-    
-    setFilterOptions(options)
-  }, [data])
 
   // Initial load
   useEffect(() => {
@@ -135,9 +119,89 @@ export default function DynamicTable({
   // Update filter options when data changes
   useEffect(() => {
     if (schema.length > 0 && data.length > 0) {
-      fetchFilterOptions(schema)
+      const filterableColumns = schema.filter(col => col.filterable)
+      const options: Record<string, string[]> = {}
+      
+      for (const col of filterableColumns) {
+        const uniqueValues = [...new Set(data.map(row => row[col.name]).filter(Boolean))]
+        options[col.name] = uniqueValues.sort()
+      }
+      
+      setFilterOptions(options)
     }
-  }, [data, schema, fetchFilterOptions])
+  }, [data, schema])
+
+  // Helper functions - format column titles for display
+  const formatColumnTitle = (name: string) => {
+    return name.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())
+  }
+
+  const getDefaultWidth = (displayType: ColumnSchema['displayType']) => {
+    switch (displayType) {
+      case 'code': return 180
+      case 'date': return 180
+      case 'badge': return 100
+      case 'tag': return 120
+      default: return 150
+    }
+  }
+
+  const getTagColor = (text: string, columnName: string) => {
+    const str = String(text).toLowerCase()
+    if (columnName.includes('Type') || columnName.includes('ENV')) {
+      if (str.includes('prod')) return 'red'
+      if (str.includes('dev')) return 'orange'
+      if (str.includes('test')) return 'purple'
+      return 'blue'
+    }
+    if (columnName === 'Region') return 'blue'
+    if (columnName === 'Tenant') return 'cyan'
+    if (columnName === 'Site') return 'purple'
+    return 'default'
+  }
+
+  const getBadgeStatus = (text: string, columnName: string): any => {
+    const str = String(text).toLowerCase()
+    if (columnName === 'status') {
+      if (str === 'available') return 'success'
+      if (str === 'pending') return 'processing'
+      if (str === 'terminated') return 'error'
+      return 'default'
+    }
+    if (columnName === 'IsDefault') {
+      return str === 'true' ? 'success' : 'default'
+    }
+    return 'default'
+  }
+
+  const renderFilterOption = (option: string, displayType: ColumnSchema['displayType'], columnName: string) => {
+    switch (displayType) {
+      case 'tag':
+        const color = getTagColor(option, columnName)
+        return <Tag color={color}>{option}</Tag>
+      case 'badge':
+        const status = getBadgeStatus(option, columnName)
+        return <Badge status={status} text={option} />
+      default:
+        return option
+    }
+  }
+
+  const sortColumn = (a: any, b: any): number => {
+    if (a === b) return 0
+    if (a == null) return 1
+    if (b == null) return -1
+    
+    // Try numeric sort first
+    const numA = Number(a)
+    const numB = Number(b)
+    if (!isNaN(numA) && !isNaN(numB)) {
+      return numA - numB
+    }
+    
+    // String sort
+    return String(a).localeCompare(String(b))
+  }
 
   // Generate table columns from schema
   const columns: ColumnsType<any> = useMemo(() => {
@@ -145,7 +209,7 @@ export default function DynamicTable({
 
     const primaryKey = schema.find(col => col.isPrimaryKey)?.name || 'id'
 
-    return schema.map(col => ({
+    const dataColumns = schema.map(col => ({
       title: formatColumnTitle(col.name),
       dataIndex: col.name,
       key: col.name,
@@ -157,14 +221,18 @@ export default function DynamicTable({
         }
         return renderCell(text, col.displayType, col.name)
       },
-      ...(col.sortable && { sorter: (a, b) => sortColumn(a[col.name], b[col.name]) })
-    })).concat([{
+      ...(col.sortable && { sorter: (a: any, b: any) => sortColumn(a[col.name], b[col.name]) })
+    }))
+    
+    const actionsColumn = {
       title: 'Actions',
       key: 'actions',
       width: 120,
       fixed: 'right' as const,
-      render: (_, record) => renderActions(record, primaryKey)
-    }])
+      render: (_: any, record: any) => renderActions(record, primaryKey)
+    }
+
+    return [...dataColumns, actionsColumn]
   }, [schema, editingRow])
 
   // Filter data based on search and filters
@@ -245,7 +313,7 @@ export default function DynamicTable({
   }
 
   // Render editable cell
-  const renderEditableCell = (fieldName: string, displayType: ColumnSchema['displayType']) => {
+  const renderEditableCell = (fieldName: string, _displayType: ColumnSchema['displayType']) => {
     return (
       <Form.Item
         name={fieldName}
@@ -411,78 +479,6 @@ export default function DynamicTable({
         ))}
       </Row>
     )
-  }
-
-  // Helper functions
-  const formatColumnTitle = (name: string) => {
-    return name.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())
-  }
-
-  const getDefaultWidth = (displayType: ColumnSchema['displayType']) => {
-    switch (displayType) {
-      case 'code': return 180
-      case 'date': return 180
-      case 'badge': return 100
-      case 'tag': return 120
-      default: return 150
-    }
-  }
-
-  const getTagColor = (text: string, columnName: string) => {
-    const str = String(text).toLowerCase()
-    if (columnName.includes('Type') || columnName.includes('ENV')) {
-      if (str.includes('prod')) return 'red'
-      if (str.includes('dev')) return 'orange'
-      if (str.includes('test')) return 'purple'
-      return 'blue'
-    }
-    if (columnName === 'Region') return 'blue'
-    if (columnName === 'Tenant') return 'cyan'
-    if (columnName === 'Site') return 'purple'
-    return 'default'
-  }
-
-  const getBadgeStatus = (text: string, columnName: string): any => {
-    const str = String(text).toLowerCase()
-    if (columnName === 'status') {
-      if (str === 'available') return 'success'
-      if (str === 'pending') return 'processing'
-      if (str === 'terminated') return 'error'
-      return 'default'
-    }
-    if (columnName === 'IsDefault') {
-      return str === 'true' ? 'success' : 'default'
-    }
-    return 'default'
-  }
-
-  const renderFilterOption = (option: string, displayType: ColumnSchema['displayType'], columnName: string) => {
-    switch (displayType) {
-      case 'tag':
-        const color = getTagColor(option, columnName)
-        return <Tag color={color}>{option}</Tag>
-      case 'badge':
-        const status = getBadgeStatus(option, columnName)
-        return <Badge status={status} text={option} />
-      default:
-        return option
-    }
-  }
-
-  const sortColumn = (a: any, b: any) => {
-    if (a === b) return 0
-    if (a == null) return 1
-    if (b == null) return -1
-    
-    // Try numeric sort first
-    const numA = Number(a)
-    const numB = Number(b)
-    if (!isNaN(numA) && !isNaN(numB)) {
-      return numA - numB
-    }
-    
-    // String sort
-    return String(a).localeCompare(String(b))
   }
 
   const primaryKey = schema.find(col => col.isPrimaryKey)?.name || 'id'

@@ -12,7 +12,7 @@ import {
   CrownOutlined,
   EyeOutlined
 } from '@ant-design/icons'
-import VPCTable from './components/VPCTable'
+import VPCDynamic from './pages/VPCDynamic'
 import LoginForm from './components/LoginForm'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 
@@ -190,7 +190,7 @@ function MinimalDashboard() {
 function VPCManagementPage() {
   return (
     <div style={{ padding: '24px' }}>
-      <VPCTable autoRefresh={true} refreshInterval={30000} />
+      <VPCDynamic />
     </div>
   )
 }
@@ -349,7 +349,7 @@ function AuthenticatedApp() {
   )
 }
 
-function MinimalApp() {
+function AppContent() {
   const { isAuthenticated } = useAuth()
 
   if (!isAuthenticated) {
@@ -359,14 +359,18 @@ function MinimalApp() {
   return <AuthenticatedApp />
 }
 
-function App() {
+function MinimalApp() {
   return (
     <Router>
       <AuthProvider>
-        <MinimalApp />
+        <AppContent />
       </AuthProvider>
     </Router>
   )
+}
+
+function App() {
+  return <MinimalApp />
 }
 
 export default App
