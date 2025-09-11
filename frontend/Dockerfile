@@ -7,8 +7,12 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install --legacy-peer-deps && npm cache clean --force
+# Configure npm for better reliability and install dependencies
+RUN npm config set fetch-timeout 300000 && \
+    npm config set fetch-retry-mintimeout 20000 && \
+    npm config set fetch-retry-maxtimeout 120000 && \
+    npm config set fetch-retries 5 && \
+    npm install --legacy-peer-deps && npm cache clean --force
 
 # Copy source code
 COPY . .

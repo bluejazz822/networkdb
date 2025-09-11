@@ -8,8 +8,12 @@ WORKDIR /app
 COPY package*.json ./
 COPY tsconfig.json ./
 
-# Install all dependencies (including dev dependencies for build)
-RUN npm install && npm cache clean --force
+# Configure npm for better reliability and install dependencies
+RUN npm config set fetch-timeout 300000 && \
+    npm config set fetch-retry-mintimeout 20000 && \
+    npm config set fetch-retry-maxtimeout 120000 && \
+    npm config set fetch-retries 5 && \
+    npm install && npm cache clean --force
 
 # Copy source code
 COPY . .
@@ -30,8 +34,12 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install only production dependencies (use npm install since package-lock.json might not exist)
-RUN npm install --omit=dev && npm cache clean --force
+# Configure npm and install only production dependencies
+RUN npm config set fetch-timeout 300000 && \
+    npm config set fetch-retry-mintimeout 20000 && \
+    npm config set fetch-retry-maxtimeout 120000 && \
+    npm config set fetch-retries 5 && \
+    npm install --omit=dev && npm cache clean --force
 
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
