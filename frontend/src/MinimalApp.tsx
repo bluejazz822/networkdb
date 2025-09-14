@@ -10,9 +10,16 @@ import {
   UserOutlined,
   LogoutOutlined,
   CrownOutlined,
-  EyeOutlined
+  EyeOutlined,
+  AmazonOutlined,
+  WindowsOutlined,
+  AlipayOutlined,
+  ApiOutlined,
+  GoogleOutlined,
+  CloudOutlined
 } from '@ant-design/icons'
 import VPCDynamic from './pages/VPCDynamic'
+import ProviderNetworkPage from './components/ProviderNetworkPage'
 import LoginForm from './components/LoginForm'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 
@@ -195,6 +202,38 @@ function VPCManagementPage() {
   )
 }
 
+function ProviderVPCPage() {
+  return (
+    <div style={{ padding: '24px' }}>
+      <ProviderNetworkPage networkType="vpcs" />
+    </div>
+  )
+}
+
+function ProviderSubnetPage() {
+  return (
+    <div style={{ padding: '24px' }}>
+      <ProviderNetworkPage networkType="subnets" />
+    </div>
+  )
+}
+
+function ProviderTransitGatewayPage() {
+  return (
+    <div style={{ padding: '24px' }}>
+      <ProviderNetworkPage networkType="transit-gateways" />
+    </div>
+  )
+}
+
+function ProviderDevicePage() {
+  return (
+    <div style={{ padding: '24px' }}>
+      <ProviderNetworkPage networkType="devices" />
+    </div>
+  )
+}
+
 function MinimalPage({ title, description }: { title: string; description: string }) {
   return (
     <div style={{ padding: '24px' }}>
@@ -246,16 +285,60 @@ function UserHeader() {
 function AuthenticatedApp() {
   const navigate = useNavigate()
   const location = useLocation()
+  const [openKeys, setOpenKeys] = React.useState<string[]>([])
 
   const currentPath = location.pathname
-  const selectedKey = currentPath === '/' || currentPath === '/dashboard' ? 'dashboard' :
-                     currentPath === '/vpcs' ? 'vpcs' :
-                     currentPath === '/subnets' ? 'subnets' :
-                     currentPath === '/transit-gateways' ? 'transit-gateways' :
-                     currentPath === '/devices' ? 'devices' : 'dashboard'
+  const getSelectedKeys = (path: string): string[] => {
+    if (path === '/' || path === '/dashboard') return ['dashboard']
+    
+    // Handle provider-specific paths
+    if (path.includes('/vpcs/')) {
+      const provider = path.split('/')[2]
+      return ['vpcs', `vpcs-${provider}`]
+    }
+    if (path.includes('/subnets/')) {
+      const provider = path.split('/')[2]
+      return ['subnets', `subnets-${provider}`]
+    }
+    if (path.includes('/transit-gateways/')) {
+      const provider = path.split('/')[2]
+      return ['transit-gateways', `transit-gateways-${provider}`]
+    }
+    if (path.includes('/devices/')) {
+      const provider = path.split('/')[2]
+      return ['devices', `devices-${provider}`]
+    }
+    
+    // Handle main category paths
+    if (path === '/vpcs') return ['vpcs']
+    if (path === '/subnets') return ['subnets']
+    if (path === '/transit-gateways') return ['transit-gateways']
+    if (path === '/devices') return ['devices']
+    
+    return ['dashboard']
+  }
+  
+  const selectedKeys = getSelectedKeys(currentPath)
+  
+  // Auto-open the submenu when navigating to a provider-specific page
+  React.useEffect(() => {
+    if (selectedKeys.length > 1) {
+      setOpenKeys(prev => {
+        const parentKey = selectedKeys[0]
+        if (!prev.includes(parentKey)) {
+          return [...prev, parentKey]
+        }
+        return prev
+      })
+    }
+  }, [selectedKeys])
 
   const handleMenuClick = (path: string) => {
     navigate(path)
+  }
+
+  const handleOpenChange = (keys: string[]) => {
+    setOpenKeys(keys)
   }
 
   return (
@@ -275,7 +358,9 @@ function AuthenticatedApp() {
         <Menu
           theme="dark"
           mode="inline"
-          selectedKeys={[selectedKey]}
+          selectedKeys={selectedKeys}
+          openKeys={openKeys}
+          onOpenChange={handleOpenChange}
           items={[
             {
               key: 'dashboard',
@@ -287,25 +372,197 @@ function AuthenticatedApp() {
               key: 'vpcs',
               icon: <GlobalOutlined />,
               label: 'VPCs',
-              onClick: () => handleMenuClick('/vpcs')
+              children: [
+                {
+                  key: 'vpcs-aws',
+                  icon: <AmazonOutlined />,
+                  label: 'AWS',
+                  onClick: () => handleMenuClick('/vpcs/aws')
+                },
+                {
+                  key: 'vpcs-azure',
+                  icon: <WindowsOutlined />,
+                  label: 'Azure',
+                  onClick: () => handleMenuClick('/vpcs/azure')
+                },
+                {
+                  key: 'vpcs-ali',
+                  icon: <AlipayOutlined />,
+                  label: 'Alibaba Cloud',
+                  onClick: () => handleMenuClick('/vpcs/ali')
+                },
+                {
+                  key: 'vpcs-oci',
+                  icon: <ApiOutlined />,
+                  label: 'Oracle Cloud',
+                  onClick: () => handleMenuClick('/vpcs/oci')
+                },
+                {
+                  key: 'vpcs-gcp',
+                  icon: <GoogleOutlined />,
+                  label: 'Google Cloud',
+                  onClick: () => handleMenuClick('/vpcs/gcp')
+                },
+                {
+                  key: 'vpcs-huawei',
+                  icon: <CloudOutlined />,
+                  label: 'Huawei Cloud',
+                  onClick: () => handleMenuClick('/vpcs/huawei')
+                },
+                {
+                  key: 'vpcs-others',
+                  icon: <CloudServerOutlined />,
+                  label: 'Others',
+                  onClick: () => handleMenuClick('/vpcs/others')
+                }
+              ]
             },
             {
               key: 'subnets',
               icon: <PartitionOutlined />,
               label: 'Subnets',
-              onClick: () => handleMenuClick('/subnets')
+              children: [
+                {
+                  key: 'subnets-aws',
+                  icon: <AmazonOutlined />,
+                  label: 'AWS',
+                  onClick: () => handleMenuClick('/subnets/aws')
+                },
+                {
+                  key: 'subnets-azure',
+                  icon: <WindowsOutlined />,
+                  label: 'Azure',
+                  onClick: () => handleMenuClick('/subnets/azure')
+                },
+                {
+                  key: 'subnets-ali',
+                  icon: <AlipayOutlined />,
+                  label: 'Alibaba Cloud',
+                  onClick: () => handleMenuClick('/subnets/ali')
+                },
+                {
+                  key: 'subnets-oci',
+                  icon: <ApiOutlined />,
+                  label: 'Oracle Cloud',
+                  onClick: () => handleMenuClick('/subnets/oci')
+                },
+                {
+                  key: 'subnets-gcp',
+                  icon: <GoogleOutlined />,
+                  label: 'Google Cloud',
+                  onClick: () => handleMenuClick('/subnets/gcp')
+                },
+                {
+                  key: 'subnets-huawei',
+                  icon: <CloudOutlined />,
+                  label: 'Huawei Cloud',
+                  onClick: () => handleMenuClick('/subnets/huawei')
+                },
+                {
+                  key: 'subnets-others',
+                  icon: <CloudServerOutlined />,
+                  label: 'Others',
+                  onClick: () => handleMenuClick('/subnets/others')
+                }
+              ]
             },
             {
               key: 'transit-gateways',
               icon: <BranchesOutlined />,
               label: 'Transit Gateways',
-              onClick: () => handleMenuClick('/transit-gateways')
+              children: [
+                {
+                  key: 'transit-gateways-aws',
+                  icon: <AmazonOutlined />,
+                  label: 'AWS',
+                  onClick: () => handleMenuClick('/transit-gateways/aws')
+                },
+                {
+                  key: 'transit-gateways-azure',
+                  icon: <WindowsOutlined />,
+                  label: 'Azure',
+                  onClick: () => handleMenuClick('/transit-gateways/azure')
+                },
+                {
+                  key: 'transit-gateways-ali',
+                  icon: <AlipayOutlined />,
+                  label: 'Alibaba Cloud',
+                  onClick: () => handleMenuClick('/transit-gateways/ali')
+                },
+                {
+                  key: 'transit-gateways-oci',
+                  icon: <ApiOutlined />,
+                  label: 'Oracle Cloud',
+                  onClick: () => handleMenuClick('/transit-gateways/oci')
+                },
+                {
+                  key: 'transit-gateways-gcp',
+                  icon: <GoogleOutlined />,
+                  label: 'Google Cloud',
+                  onClick: () => handleMenuClick('/transit-gateways/gcp')
+                },
+                {
+                  key: 'transit-gateways-huawei',
+                  icon: <CloudOutlined />,
+                  label: 'Huawei Cloud',
+                  onClick: () => handleMenuClick('/transit-gateways/huawei')
+                },
+                {
+                  key: 'transit-gateways-others',
+                  icon: <CloudServerOutlined />,
+                  label: 'Others',
+                  onClick: () => handleMenuClick('/transit-gateways/others')
+                }
+              ]
             },
             {
               key: 'devices',
               icon: <CloudServerOutlined />,
               label: 'Network Devices',
-              onClick: () => handleMenuClick('/devices')
+              children: [
+                {
+                  key: 'devices-aws',
+                  icon: <AmazonOutlined />,
+                  label: 'AWS',
+                  onClick: () => handleMenuClick('/devices/aws')
+                },
+                {
+                  key: 'devices-azure',
+                  icon: <WindowsOutlined />,
+                  label: 'Azure',
+                  onClick: () => handleMenuClick('/devices/azure')
+                },
+                {
+                  key: 'devices-ali',
+                  icon: <AlipayOutlined />,
+                  label: 'Alibaba Cloud',
+                  onClick: () => handleMenuClick('/devices/ali')
+                },
+                {
+                  key: 'devices-oci',
+                  icon: <ApiOutlined />,
+                  label: 'Oracle Cloud',
+                  onClick: () => handleMenuClick('/devices/oci')
+                },
+                {
+                  key: 'devices-gcp',
+                  icon: <GoogleOutlined />,
+                  label: 'Google Cloud',
+                  onClick: () => handleMenuClick('/devices/gcp')
+                },
+                {
+                  key: 'devices-huawei',
+                  icon: <CloudOutlined />,
+                  label: 'Huawei Cloud',
+                  onClick: () => handleMenuClick('/devices/huawei')
+                },
+                {
+                  key: 'devices-others',
+                  icon: <CloudServerOutlined />,
+                  label: 'Others',
+                  onClick: () => handleMenuClick('/devices/others')
+                }
+              ]
             }
           ]}
         />
@@ -328,19 +585,23 @@ function AuthenticatedApp() {
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<MinimalDashboard />} />
-            <Route path="/vpcs" element={<VPCManagementPage />} />
-            <Route 
-              path="/subnets" 
-              element={<MinimalPage title="Subnets" description="Manage network subnets and IP address allocations." />} 
-            />
-            <Route 
-              path="/transit-gateways" 
-              element={<MinimalPage title="Transit Gateways" description="Manage transit gateways for inter-VPC connectivity." />} 
-            />
-            <Route 
-              path="/devices" 
-              element={<MinimalPage title="Network Devices" description="Manage routers, switches, firewalls and other network equipment." />} 
-            />
+            
+            {/* VPC Routes */}
+            <Route path="/vpcs" element={<Navigate to="/vpcs/aws" replace />} />
+            <Route path="/vpcs/:provider" element={<ProviderVPCPage />} />
+            
+            {/* Subnet Routes */}
+            <Route path="/subnets" element={<Navigate to="/subnets/aws" replace />} />
+            <Route path="/subnets/:provider" element={<ProviderSubnetPage />} />
+            
+            {/* Transit Gateway Routes */}
+            <Route path="/transit-gateways" element={<Navigate to="/transit-gateways/aws" replace />} />
+            <Route path="/transit-gateways/:provider" element={<ProviderTransitGatewayPage />} />
+            
+            {/* Network Devices Routes */}
+            <Route path="/devices" element={<Navigate to="/devices/aws" replace />} />
+            <Route path="/devices/:provider" element={<ProviderDevicePage />} />
+            
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </Content>
