@@ -1,4 +1,3 @@
-import React from 'react'
 import { useParams } from 'react-router-dom'
 import DynamicTable from './DynamicTable'
 import { 
@@ -86,7 +85,7 @@ export default function ProviderNetworkPage({ networkType }: ProviderNetworkPage
     }
   }
 
-  const getTitle = (networkType: string, provider: string) => {
+  const getTitle = (networkType: string) => {
     const networkTypeMap: { [key: string]: string } = {
       'vpcs': 'VPCs',
       'subnets': 'Subnets',
@@ -105,7 +104,7 @@ export default function ProviderNetworkPage({ networkType }: ProviderNetworkPage
       <div style={{ padding: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
           {config.icon}
-          <h2 style={{ margin: '0 0 0 8px' }}>{getTitle(networkType, provider)}</h2>
+          <h2 style={{ margin: '0 0 0 8px' }}>{getTitle(networkType)}</h2>
         </div>
         <div style={{ 
           textAlign: 'center', 
@@ -124,7 +123,7 @@ export default function ProviderNetworkPage({ networkType }: ProviderNetworkPage
   return (
     <DynamicTable
       apiEndpoint={apiEndpoint}
-      title={getTitle(networkType, provider)}
+      title={getTitle(networkType)}
       icon={config.icon}
       autoRefresh={true}
       refreshInterval={30000}

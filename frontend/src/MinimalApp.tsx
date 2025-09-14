@@ -18,7 +18,6 @@ import {
   GoogleOutlined,
   CloudOutlined
 } from '@ant-design/icons'
-import VPCDynamic from './pages/VPCDynamic'
 import ProviderNetworkPage from './components/ProviderNetworkPage'
 import LoginForm from './components/LoginForm'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
@@ -194,13 +193,6 @@ function MinimalDashboard() {
   )
 }
 
-function VPCManagementPage() {
-  return (
-    <div style={{ padding: '24px' }}>
-      <VPCDynamic />
-    </div>
-  )
-}
 
 function ProviderVPCPage() {
   return (
@@ -234,17 +226,6 @@ function ProviderDevicePage() {
   )
 }
 
-function MinimalPage({ title, description }: { title: string; description: string }) {
-  return (
-    <div style={{ padding: '24px' }}>
-      <Title level={2}>{title}</Title>
-      <Card>
-        <p>{description}</p>
-        <p>This page would contain management functionality for {title.toLowerCase()}.</p>
-      </Card>
-    </div>
-  )
-}
 
 function UserHeader() {
   const { user, logout } = useAuth()
