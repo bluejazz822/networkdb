@@ -2,6 +2,7 @@ import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 import Papa from 'papaparse'
+import html2canvas from 'html2canvas'
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -175,7 +176,7 @@ export const exportToPDF = (
 export const getExportStats = (data: ExportData[], selectedFields: ExportField[]) => {
   const selectedCount = selectedFields.filter(field => field.selected).length
   const totalRecords = data.length
-  
+
   return {
     selectedFields: selectedCount,
     totalFields: selectedFields.length,
@@ -185,5 +186,183 @@ export const getExportStats = (data: ExportData[], selectedFields: ExportField[]
       excel: Math.round((totalRecords * selectedCount * 25) / 1024), // KB estimate
       pdf: Math.round((totalRecords * selectedCount * 30) / 1024) // KB estimate
     }
+  }
+}
+
+// Chart export utilities
+export interface ChartExportOptions {
+  chartId: string
+  title?: string
+  width?: number
+  height?: number
+  backgroundColor?: string
+  scale?: number
+  format?: 'png' | 'jpeg'
+  quality?: number
+}
+
+export const captureChartAsImage = async (options: ChartExportOptions): Promise<string | null> => {
+  try {
+    const chartElement = document.getElementById(options.chartId)
+    if (!chartElement) {
+      console.error(`Chart element with ID ${options.chartId} not found`)
+      return null
+    }
+
+    const canvas = await html2canvas(chartElement, {
+      width: options.width || chartElement.offsetWidth,
+      height: options.height || chartElement.offsetHeight,
+      backgroundColor: options.backgroundColor || '#ffffff',
+      scale: options.scale || 2,
+      useCORS: true,
+      allowTaint: true,
+      removeContainer: false
+    })
+
+    return canvas.toDataURL(`image/${options.format || 'png'}`, options.quality || 0.95)
+  } catch (error) {
+    console.error('Chart capture error:', error)
+    return null
+  }
+}
+
+export const downloadChartAsImage = async (options: ChartExportOptions & { filename?: string }): Promise<boolean> => {
+  try {
+    const imageData = await captureChartAsImage(options)
+    if (!imageData) {
+      return false
+    }
+
+    const link = document.createElement('a')
+    link.download = options.filename || `chart_${options.chartId}_${new Date().toISOString().slice(0, 10)}.${options.format || 'png'}`
+    link.href = imageData
+
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    return true
+  } catch (error) {
+    console.error('Chart download error:', error)
+    return false
+  }
+}
+
+export const addChartToPDF = (
+  doc: jsPDF,
+  imageData: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  title?: string
+): number => {
+  try {
+    let currentY = y
+
+    // Add title if provided
+    if (title) {
+      doc.setFontSize(12)
+      doc.setFont('helvetica', 'bold')
+      doc.text(title, x, currentY)
+      currentY += 8
+    }
+
+    // Add image
+    doc.addImage(imageData, 'PNG', x, currentY, width, height)
+    currentY += height + 10
+
+    return currentY
+  } catch (error) {
+    console.error('Add chart to PDF error:', error)
+    return y
+  }
+}
+
+export interface MultiChartPDFOptions {
+  title: string
+  charts: {
+    id: string
+    title: string
+    width?: number
+    height?: number
+  }[]
+  pageSize?: 'a4' | 'letter'
+  orientation?: 'portrait' | 'landscape'
+  margin?: number
+}
+
+export const exportMultipleChartsToPDF = async (options: MultiChartPDFOptions): Promise<boolean> => {
+  try {
+    const doc = new jsPDF(
+      options.orientation || 'portrait',
+      'mm',
+      options.pageSize || 'a4'
+    )
+
+    const margin = options.margin || 20
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const contentWidth = pageWidth - (margin * 2)
+    const contentHeight = pageHeight - (margin * 2)
+
+    let currentY = margin
+
+    // Add main title
+    doc.setFontSize(18)
+    doc.setFont('helvetica', 'bold')
+    doc.text(options.title, margin, currentY)
+    currentY += 15
+
+    // Add generation info
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Generated: ${new Date().toLocaleString()}`, margin, currentY)
+    currentY += 10
+
+    for (const chart of options.charts) {
+      const chartWidth = chart.width || contentWidth
+      const chartHeight = chart.height || (chartWidth * 0.6) // Default aspect ratio
+
+      // Check if we need a new page
+      if (currentY + chartHeight + 20 > pageHeight - margin) {
+        doc.addPage()
+        currentY = margin
+      }
+
+      // Capture chart
+      const imageData = await captureChartAsImage({
+        chartId: chart.id,
+        width: chartWidth * 3, // Higher resolution for PDF
+        height: chartHeight * 3,
+        scale: 1
+      })
+
+      if (imageData) {
+        currentY = addChartToPDF(
+          doc,
+          imageData,
+          margin,
+          currentY,
+          chartWidth,
+          chartHeight,
+          chart.title
+        )
+      } else {
+        // Add placeholder if chart capture failed
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'italic')
+        doc.text(`Failed to capture chart: ${chart.title}`, margin, currentY)
+        currentY += 15
+      }
+    }
+
+    const filename = `charts_${new Date().toISOString().slice(0, 10)}.pdf`
+    doc.save(filename)
+
+    return true
+  } catch (error) {
+    console.error('Multiple charts PDF export error:', error)
+    return false
   }
 }

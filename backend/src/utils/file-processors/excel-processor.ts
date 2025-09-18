@@ -344,13 +344,13 @@ export class ExcelProcessor extends BaseFileProcessor implements FileProcessor<N
 
     const processor = new Transform({
       objectMode: true,
-      transform(chunk: Buffer, encoding, callback) {
+      transform: (chunk: Buffer, encoding, callback) => {
         // Collect all chunks first (Excel files must be read completely)
         bufferData.push(chunk);
         callback();
       },
-      
-      flush(callback) {
+
+      flush: (callback) => {
         try {
           // Combine all chunks
           const completeBuffer = Buffer.concat(bufferData);
@@ -478,7 +478,7 @@ export class ExcelProcessor extends BaseFileProcessor implements FileProcessor<N
         } catch (error) {
           callback(new Error(`Excel streaming failed: ${error instanceof Error ? error.message : 'Unknown error'}`));
         }
-      }.bind(this)
+      }
     });
 
     return source.pipe(processor);
