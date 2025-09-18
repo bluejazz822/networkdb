@@ -13,6 +13,7 @@ import { sequelize, connectToDatabase } from './database';
 import { getTableSchema, createDynamicModel, getColumnUniqueValues } from './utils/schemaUtils';
 import './models/workflow-associations'; // Initialize workflow model associations
 import apiRoutes from './api/routes';
+import { pollingService } from './services/PollingService';
 
 // Load environment variables
 dotenv.config();
@@ -49,6 +50,19 @@ async function initializeDatabase() {
     await initializeDynamicModel();
   }
 }
+
+// Initialize services
+async function initializeServices() {
+  try {
+    console.log('🚀 Starting automated polling service...');
+    await pollingService.start();
+    console.log('✅ Polling service started successfully');
+  } catch (error) {
+    console.error('❌ Failed to start polling service:', error);
+    // Don't exit process - polling service is optional
+  }
+}
+
 initializeDatabase();
 
 // Mount API routes
@@ -56,12 +70,42 @@ app.use('/api', apiRoutes);
 
 // Health check endpoint
 app.get('/health', async (req, res) => {
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    service: 'network-cmdb-backend',
-    version: '1.0.0'
-  });
+  try {
+    // Get polling service health
+    const pollingHealth = await pollingService.getHealth();
+
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      service: 'network-cmdb-backend',
+      version: '1.0.0',
+      services: {
+        database: 'connected',
+        pollingService: {
+          healthy: pollingHealth.healthy,
+          running: pollingService.isRunning(),
+          scheduled: pollingService.getStatus().scheduled,
+          lastExecution: pollingHealth.lastExecution,
+          nextExecution: pollingHealth.nextExecution
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Health check error:', error);
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      service: 'network-cmdb-backend',
+      version: '1.0.0',
+      services: {
+        database: 'connected',
+        pollingService: {
+          healthy: false,
+          error: 'Health check failed'
+        }
+      }
+    });
+  }
 });
 
 // API routes
@@ -380,13 +424,45 @@ app.use('*', (req, res) => {
 // Start server
 async function startServer() {
   try {
-    app.listen(PORT, () => {
+    app.listen(PORT, async () => {
       console.log(`Network CMDB Backend server running on port ${PORT}`);
       console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`Health check: http://localhost:${PORT}/health`);
+
+      // Initialize services after server starts
+      await initializeServices();
     });
   } catch (error) {
     console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+// Graceful shutdown handling
+process.on('SIGTERM', async () => {
+  console.log('📴 SIGTERM received, shutting down gracefully...');
+  await shutdown();
+});
+
+process.on('SIGINT', async () => {
+  console.log('📴 SIGINT received, shutting down gracefully...');
+  await shutdown();
+});
+
+async function shutdown() {
+  try {
+    console.log('🛑 Stopping polling service...');
+    await pollingService.stop();
+    console.log('✅ Polling service stopped successfully');
+
+    console.log('🛑 Closing database connections...');
+    await sequelize.close();
+    console.log('✅ Database connections closed');
+
+    console.log('🎯 Graceful shutdown completed');
+    process.exit(0);
+  } catch (error) {
+    console.error('❌ Error during graceful shutdown:', error);
     process.exit(1);
   }
 }
