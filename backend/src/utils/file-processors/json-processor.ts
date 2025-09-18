@@ -401,15 +401,15 @@ export class JsonProcessor extends BaseFileProcessor implements FileProcessor<Ne
 
     const processor = new Transform({
       objectMode: true,
-      transform(chunk: any, encoding, callback) {
+      transform: (chunk: any, encoding, callback) => {
         recordsProcessed++;
         const rowNumber = recordsProcessed;
-        
+
         // Extract the actual data (StreamArray provides { key, value })
         const record = chunk.value || chunk;
-        
+
         const result = this.processRecord(record, rowNumber, validate, jsonOptions.strict);
-        
+
         if (result.success) {
           recordsValid++;
         } else {
@@ -421,7 +421,7 @@ export class JsonProcessor extends BaseFileProcessor implements FileProcessor<Ne
           const currentTime = Date.now();
           const elapsedMs = currentTime - startTime;
           const processingRate = recordsProcessed / (elapsedMs / 1000);
-          
+
           onProgress({
             recordsProcessed,
             recordsValid,
@@ -439,9 +439,9 @@ export class JsonProcessor extends BaseFileProcessor implements FileProcessor<Ne
         }
 
         callback(null, result);
-      }.bind(this),
-      
-      flush(callback) {
+      },
+
+      flush: (callback) => {
         // Final progress update
         if (onProgress) {
           const currentTime = Date.now();
@@ -459,7 +459,7 @@ export class JsonProcessor extends BaseFileProcessor implements FileProcessor<Ne
         
         this.updateStats(recordsProcessed, Date.now() - startTime);
         callback();
-      }.bind(this)
+      }
     });
 
     return pipeline.pipe(processor);

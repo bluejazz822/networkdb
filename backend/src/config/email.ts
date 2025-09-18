@@ -4,7 +4,6 @@
  */
 
 import nodemailer from 'nodemailer';
-import { createTransporter } from 'nodemailer';
 
 export interface EmailConfig {
   smtp: {
@@ -63,7 +62,7 @@ export function createEmailTransporter(): nodemailer.Transporter | null {
       return null;
     }
 
-    const transporter = createTransporter({
+    const transporter = nodemailer.createTransport({
       host: config.smtp.host,
       port: config.smtp.port,
       secure: config.smtp.secure,
@@ -83,7 +82,7 @@ export function createEmailTransporter(): nodemailer.Transporter | null {
     });
 
     // Test connection on startup
-    transporter.verify((error, success) => {
+    transporter.verify((error: any, success: any) => {
       if (error) {
         console.error('SMTP configuration error:', error.message);
       } else {

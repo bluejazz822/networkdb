@@ -1,5 +1,5 @@
 import { DataTypes, Model, Optional } from 'sequelize';
-import { sequelize } from '../config/database';
+import { sequelize } from '../database';
 import { WorkflowExecution } from './WorkflowExecution';
 
 export interface WorkflowAlertAttributes {

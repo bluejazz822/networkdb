@@ -24,9 +24,6 @@ module.exports = {
     'html'
   ],
   setupFilesAfterEnv: ['<rootDir>/src/tests/setup.ts'],
-  moduleNameMapping: {
-    '^@/(.*)$': '<rootDir>/src/$1'
-  },
   testTimeout: 30000,
   // Skip database-related tests in CI unless explicitly enabled
   testPathIgnorePatterns: [

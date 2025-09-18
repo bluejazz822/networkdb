@@ -254,12 +254,12 @@ export class CsvProcessor extends BaseFileProcessor implements FileProcessor<Net
 
     const processor = new Transform({
       objectMode: true,
-      transform(chunk: any, encoding, callback) {
+      transform: (chunk: any, encoding, callback) => {
         rowNumber++;
         recordsProcessed++;
 
         const result = this.processRow(chunk, rowNumber);
-        
+
         if (result.success) {
           recordsValid++;
         } else {
@@ -271,7 +271,7 @@ export class CsvProcessor extends BaseFileProcessor implements FileProcessor<Net
           const currentTime = Date.now();
           const elapsedMs = currentTime - startTime;
           const processingRate = recordsProcessed / (elapsedMs / 1000);
-          
+
           onProgress({
             recordsProcessed,
             recordsValid,
@@ -282,9 +282,9 @@ export class CsvProcessor extends BaseFileProcessor implements FileProcessor<Net
         }
 
         callback(null, result);
-      }.bind(this),
-      
-      flush: function(callback) {
+      },
+
+      flush: (callback) => {
         // Final progress update
         if (onProgress) {
           const currentTime = Date.now();
@@ -299,10 +299,10 @@ export class CsvProcessor extends BaseFileProcessor implements FileProcessor<Net
             processingRatePerSecond: processingRate
           });
         }
-        
+
         this.updateStats(recordsProcessed, Date.now() - startTime);
         callback();
-      }.bind(this)
+      }
     });
 
     return source.pipe(csvParser).pipe(processor);

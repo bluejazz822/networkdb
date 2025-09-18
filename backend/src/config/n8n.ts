@@ -5,7 +5,7 @@
 
 import dotenv from 'dotenv';
 import Joi from 'joi';
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { N8nClientConfig, N8nRateLimitConfig, N8nRetryConfig, N8nErrorCode } from '../types/workflow';
 
 // Load environment variables
@@ -213,30 +213,30 @@ const shouldRetry = (error: any, attempt: number): boolean => {
 };
 
 // Request interceptor for rate limiting
-const requestInterceptor = async (config: AxiosRequestConfig): Promise<AxiosRequestConfig> => {
+const requestInterceptor = async (config: InternalAxiosRequestConfig): Promise<InternalAxiosRequestConfig> => {
   // Check rate limit
   if (!rateLimiter.canMakeRequest()) {
     const retryAfter = rateLimitConfig.retryAfter || 60;
     await sleep(retryAfter * 1000);
   }
-  
+
   // Record the request
   rateLimiter.recordRequest();
-  
+
   // Add timestamp for logging
-  config.metadata = { startTime: Date.now() };
-  
+  (config as any).metadata = { startTime: Date.now() };
+
   if (n8nEnv.N8N_ENABLE_LOGGING) {
     console.log(`[n8n] ${config.method?.toUpperCase()} ${config.url}`);
   }
-  
+
   return config;
 };
 
 // Response interceptor for logging and error handling
 const responseInterceptor = (response: AxiosResponse): AxiosResponse => {
   if (n8nEnv.N8N_ENABLE_LOGGING) {
-    const duration = Date.now() - (response.config.metadata?.startTime || 0);
+    const duration = Date.now() - ((response.config as any).metadata?.startTime || 0);
     console.log(`[n8n] ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url} (${duration}ms)`);
   }
   return response;
@@ -267,7 +267,7 @@ const errorInterceptor = async (error: any): Promise<any> => {
     await sleep(delay);
     
     // Remove metadata to reset timing
-    delete config.metadata;
+    delete (config as any).metadata;
     
     return n8nAxiosClient.request(config);
   }
