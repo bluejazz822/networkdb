@@ -27,11 +27,20 @@ services:
       start_period: 40s
     depends_on:
       - database-check
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
-        max-file: "3"
+        max-file: "5"
+        labels: "com.docker.compose.service=backend"
 
   frontend:
     build:
@@ -48,7 +57,7 @@ services:
       - ./logs/frontend:/var/log/nginx
       - ./config/frontend:/usr/share/nginx/html/config:ro
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -56,11 +65,20 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
-        max-file: "3"
+        max-file: "5"
+        labels: "com.docker.compose.service=frontend"
 
   database-check:
     image: mysql:8.0

@@ -1,0 +1,137 @@
+version: '3.8'
+
+# Load Balancer Configuration for Network CMDB
+# This extends the base docker-compose.yml with load balancing capabilities
+
+services:
+  # Load balancer using nginx
+  loadbalancer:
+    image: nginx:alpine
+    container_name: network-cmdb-loadbalancer
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/nginx/nginx-lb.conf:/etc/nginx/nginx.conf:ro
+      - ./config/nginx/ssl:/etc/nginx/ssl:ro
+      - ./logs/loadbalancer:/var/log/nginx
+    networks:
+      - network-cmdb
+    depends_on:
+      - frontend-1
+      - frontend-2
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.25'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+        labels: "com.docker.compose.service=loadbalancer"
+
+  # Multiple frontend instances for load balancing
+  frontend-1:
+    extends:
+      file: docker-compose.yml
+      service: frontend
+    container_name: network-cmdb-frontend-1
+    ports: []  # Remove direct port mapping
+    environment:
+      - INSTANCE_ID=frontend-1
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`localhost`)"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+
+  frontend-2:
+    extends:
+      file: docker-compose.yml
+      service: frontend
+    container_name: network-cmdb-frontend-2
+    ports: []  # Remove direct port mapping
+    environment:
+      - INSTANCE_ID=frontend-2
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`localhost`)"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+
+  # Multiple backend instances for load balancing
+  backend-1:
+    extends:
+      file: docker-compose.yml
+      service: backend
+    container_name: network-cmdb-backend-1
+    ports: []  # Remove direct port mapping
+    environment:
+      - NODE_ENV=production
+      - INSTANCE_ID=backend-1
+    volumes:
+      - ./logs/backend-1:/app/logs
+      - ./config/backend:/app/config:ro
+
+  backend-2:
+    extends:
+      file: docker-compose.yml
+      service: backend
+    container_name: network-cmdb-backend-2
+    ports: []  # Remove direct port mapping
+    environment:
+      - NODE_ENV=production
+      - INSTANCE_ID=backend-2
+    volumes:
+      - ./logs/backend-2:/app/logs
+      - ./config/backend:/app/config:ro
+
+  # Redis for session storage (required for load balancing)
+  redis:
+    image: redis:7-alpine
+    container_name: network-cmdb-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+      - ./config/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      - network-cmdb
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+networks:
+  network-cmdb:
+    driver: bridge
+    name: network-cmdb-network
+
+volumes:
+  redis-data:
+    driver: local
