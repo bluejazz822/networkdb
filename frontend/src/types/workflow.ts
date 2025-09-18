@@ -268,3 +268,126 @@ export interface UseWorkflowActionsOptions {
   onSuccess?: (data: any) => void
   onError?: (error: Error) => void
 }
+
+// Analytics and reporting types
+export interface AnalyticsTimeRange {
+  start: string
+  end: string
+  granularity: 'hour' | 'day' | 'week' | 'month'
+}
+
+export interface ExecutionMetrics {
+  workflowId: string
+  workflowName: string
+  totalExecutions: number
+  successfulExecutions: number
+  failedExecutions: number
+  avgDuration: number
+  lastExecution?: string
+  successRate: number
+  errorRate: number
+  trendDirection: 'up' | 'down' | 'stable'
+}
+
+export interface PerformanceTrend {
+  date: string
+  executions: number
+  successes: number
+  failures: number
+  avgDuration: number
+  successRate: number
+}
+
+export interface DataFreshnessMetric {
+  workflowId: string
+  workflowName: string
+  lastSuccessfulExecution: string
+  dataAge: number // in hours
+  freshnessStatus: 'fresh' | 'stale' | 'critical'
+  expectedFrequency: string
+  nextExpectedRun?: string
+}
+
+export interface ReportExportConfig {
+  reportType: 'execution_history' | 'performance_metrics' | 'data_freshness' | 'trend_analysis'
+  format: 'csv' | 'pdf' | 'excel'
+  timeRange: AnalyticsTimeRange
+  filters?: {
+    workflowIds?: string[]
+    status?: ExecutionStatus[]
+    includeCharts?: boolean
+    groupBy?: 'workflow' | 'date' | 'status'
+  }
+  fields: ReportField[]
+}
+
+export interface ReportField {
+  key: string
+  label: string
+  selected: boolean
+  format?: 'date' | 'duration' | 'percentage' | 'number' | 'text'
+}
+
+export interface AnalyticsReportData {
+  metadata: {
+    reportType: string
+    timeRange: AnalyticsTimeRange
+    generatedAt: string
+    totalRecords: number
+    filters?: Record<string, any>
+  }
+  data: {
+    executions?: WorkflowExecution[]
+    metrics?: ExecutionMetrics[]
+    trends?: PerformanceTrend[]
+    freshness?: DataFreshnessMetric[]
+    summary?: {
+      totalWorkflows: number
+      totalExecutions: number
+      overallSuccessRate: number
+      avgExecutionTime: number
+      activeWorkflows: number
+    }
+  }
+}
+
+export interface ChartExportConfig {
+  chartId: string
+  title: string
+  type: 'line' | 'bar' | 'pie' | 'area'
+  width: number
+  height: number
+  includeData?: boolean
+}
+
+// Default report field configurations
+export const EXECUTION_HISTORY_FIELDS: ReportField[] = [
+  { key: 'id', label: 'Execution ID', selected: true },
+  { key: 'workflowName', label: 'Workflow Name', selected: true },
+  { key: 'status', label: 'Status', selected: true },
+  { key: 'startedAt', label: 'Started At', selected: true, format: 'date' },
+  { key: 'stoppedAt', label: 'Completed At', selected: true, format: 'date' },
+  { key: 'duration', label: 'Duration', selected: true, format: 'duration' },
+  { key: 'mode', label: 'Execution Mode', selected: false },
+  { key: 'retryOf', label: 'Retry Of', selected: false }
+]
+
+export const PERFORMANCE_METRICS_FIELDS: ReportField[] = [
+  { key: 'workflowName', label: 'Workflow Name', selected: true },
+  { key: 'totalExecutions', label: 'Total Executions', selected: true, format: 'number' },
+  { key: 'successfulExecutions', label: 'Successful', selected: true, format: 'number' },
+  { key: 'failedExecutions', label: 'Failed', selected: true, format: 'number' },
+  { key: 'successRate', label: 'Success Rate', selected: true, format: 'percentage' },
+  { key: 'avgDuration', label: 'Average Duration', selected: true, format: 'duration' },
+  { key: 'lastExecution', label: 'Last Execution', selected: true, format: 'date' },
+  { key: 'trendDirection', label: 'Trend', selected: false }
+]
+
+export const DATA_FRESHNESS_FIELDS: ReportField[] = [
+  { key: 'workflowName', label: 'Workflow Name', selected: true },
+  { key: 'lastSuccessfulExecution', label: 'Last Success', selected: true, format: 'date' },
+  { key: 'dataAge', label: 'Data Age (hours)', selected: true, format: 'number' },
+  { key: 'freshnessStatus', label: 'Status', selected: true },
+  { key: 'expectedFrequency', label: 'Expected Frequency', selected: true },
+  { key: 'nextExpectedRun', label: 'Next Expected Run', selected: false, format: 'date' }
+]
