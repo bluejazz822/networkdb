@@ -11,6 +11,8 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { sequelize, connectToDatabase } from './database';
 import { getTableSchema, createDynamicModel, getColumnUniqueValues } from './utils/schemaUtils';
+import './models/workflow-associations'; // Initialize workflow model associations
+import apiRoutes from './api/routes';
 
 // Load environment variables
 dotenv.config();
@@ -49,6 +51,9 @@ async function initializeDatabase() {
 }
 initializeDatabase();
 
+// Mount API routes
+app.use('/api', apiRoutes);
+
 // Health check endpoint
 app.get('/health', async (req, res) => {
   res.json({
@@ -67,6 +72,7 @@ app.get('/api', (req, res) => {
     endpoints: {
       health: '/health',
       vpcs: '/api/vpcs',
+      workflows: '/api/workflows',
       schema: '/api/schema/:table',
       filters: '/api/filters/:table/:column',
       api: '/api'

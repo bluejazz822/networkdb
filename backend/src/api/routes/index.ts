@@ -12,6 +12,7 @@ import importExportRoutes from './import-export';
 import bulkRoutes from './bulk';
 import searchRoutes from './search';
 import reportsRoutes from './reports';
+import workflowRoutes from './workflows';
 
 const router: Router = Router();
 
@@ -48,7 +49,10 @@ router.get('/version', (req, res) => {
         'reporting-system',
         'dashboard-widgets',
         'scheduled-reports',
-        'report-export'
+        'report-export',
+        'workflow-management',
+        'workflow-execution',
+        'n8n-integration'
       ]
     }
   });
@@ -63,6 +67,7 @@ router.use('/', importExportRoutes); // Import/export routes are at root level
 router.use('/bulk', bulkRoutes); // Bulk operations routes
 router.use('/search', searchRoutes); // Advanced search and filtering routes
 router.use('/reports', reportsRoutes); // Reporting system routes
+router.use('/workflows', workflowRoutes); // Workflow management and execution routes
 
 // 404 handler for API routes
 router.use('*', (req, res) => {
