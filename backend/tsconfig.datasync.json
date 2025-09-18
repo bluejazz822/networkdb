@@ -1,0 +1,38 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmitOnError": false,
+    "skipLibCheck": true,
+    "strict": false,
+    "noImplicitAny": false,
+    "noImplicitReturns": false,
+    "noImplicitThis": false
+  },
+  "include": [
+    "src/server-minimal.ts",
+    "src/services/PollingService.ts",
+    "src/services/WorkflowService.ts",
+    "src/services/AlertService.ts",
+    "src/services/N8nService.ts",
+    "src/api/routes/workflows.ts",
+    "src/controllers/WorkflowController.ts",
+    "src/repositories/WorkflowRepository.ts",
+    "src/repositories/interfaces/IWorkflowRepository.ts",
+    "src/jobs/WorkflowPollingJob.ts",
+    "src/config/scheduler.ts",
+    "src/config/n8n.ts",
+    "src/config/email.ts",
+    "src/models/WorkflowRegistry.ts",
+    "src/models/WorkflowExecution.ts",
+    "src/models/WorkflowAlert.ts",
+    "src/models/workflow-associations.ts",
+    "src/middleware/workflowAuth.ts",
+    "src/types/workflow.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "**/*.spec.ts"
+  ]
+}

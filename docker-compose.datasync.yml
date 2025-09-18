@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # Data Synchronization Microservice
+  datasync-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.datasync
+    image: network-cmdb-datasync:latest
+    container_name: datasync-backend
+    restart: unless-stopped
+    ports:
+      - "3302:3302"
+    environment:
+      - NODE_ENV=production
+      - PORT=3302
+      - DB_HOST=${DB_HOST:-172.16.30.62}
+      - DB_PORT=${DB_PORT:-44060}
+      - DB_NAME=${DB_NAME:-mydatabase}
+      - DB_USER=${DB_USER:-root}
+      - DB_PASSWORD=${DB_PASSWORD:-Gq34Ko90#110}
+      - N8N_BASE_URL=${N8N_BASE_URL:-http://172.16.30.60:5678}
+      - N8N_API_KEY=${N8N_API_KEY}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - EMAIL_FROM=${EMAIL_FROM:-noreply@networkdb.local}
+    networks:
+      - datasync-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3302/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Frontend for Data Sync Dashboard
+  datasync-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.datasync
+    image: network-cmdb-datasync-frontend:latest
+    container_name: datasync-frontend
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      - REACT_APP_API_URL=
+      - REACT_APP_DATASYNC_ONLY=true
+    networks:
+      - datasync-network
+    depends_on:
+      datasync-backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.25'
+        reservations:
+          memory: 64M
+          cpus: '0.1'
+
+networks:
+  datasync-network:
+    driver: bridge
+    name: datasync-network
