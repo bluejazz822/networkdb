@@ -1,10 +1,10 @@
 import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { Layout, Menu, Typography, Card, Row, Col, Statistic, Button, Space, Tag, Avatar, Dropdown } from 'antd'
-import { 
-  DashboardOutlined, 
-  CloudServerOutlined, 
-  GlobalOutlined, 
+import {
+  DashboardOutlined,
+  CloudServerOutlined,
+  GlobalOutlined,
   PartitionOutlined,
   BranchesOutlined,
   UserOutlined,
@@ -16,9 +16,11 @@ import {
   AlipayOutlined,
   ApiOutlined,
   GoogleOutlined,
-  CloudOutlined
+  CloudOutlined,
+  SyncOutlined
 } from '@ant-design/icons'
 import ProviderNetworkPage from './components/ProviderNetworkPage'
+import DataSyncPage from './components/DataSyncPage'
 import LoginForm from './components/LoginForm'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 
@@ -295,7 +297,8 @@ function AuthenticatedApp() {
     if (path === '/subnets') return ['subnets']
     if (path === '/transit-gateways') return ['transit-gateways']
     if (path === '/devices') return ['devices']
-    
+    if (path === '/data-sync') return ['data-sync']
+
     return ['dashboard']
   }
   
@@ -544,6 +547,12 @@ function AuthenticatedApp() {
                   onClick: () => handleMenuClick('/devices/others')
                 }
               ]
+            },
+            {
+              key: 'data-sync',
+              icon: <SyncOutlined />,
+              label: 'Data Synchronization',
+              onClick: () => handleMenuClick('/data-sync')
             }
           ]}
         />
@@ -582,7 +591,10 @@ function AuthenticatedApp() {
             {/* Network Devices Routes */}
             <Route path="/devices" element={<Navigate to="/devices/aws" replace />} />
             <Route path="/devices/:provider" element={<ProviderDevicePage />} />
-            
+
+            {/* Data Synchronization Route */}
+            <Route path="/data-sync" element={<DataSyncPage />} />
+
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </Content>
