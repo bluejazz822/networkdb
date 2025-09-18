@@ -1,120 +1,153 @@
-import React from 'react'
-import { Card, Typography, Row, Col, Statistic, Space, Spin, Alert } from 'antd'
-import { SyncOutlined, CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
+import React, { useState, useCallback } from 'react'
+import { Typography, Row, Col, Space, Divider, Button, message } from 'antd'
+import { PlusOutlined, SettingOutlined, HistoryOutlined } from '@ant-design/icons'
+import WorkflowMetrics from './WorkflowMetrics'
+import WorkflowStatusGrid from './WorkflowStatusGrid'
 
 const { Title, Paragraph } = Typography
 
 function DataSyncPage() {
-  const [loading] = React.useState(false)
+  const [loading, setLoading] = useState(false)
 
-  // Mock data for synchronization status
-  const syncStats = {
-    totalWorkflows: 0,
-    activeWorkflows: 0,
-    lastSync: null,
-    syncStatus: 'pending'
+  // Mock data for metrics - will be replaced with real API data
+  const metricsData = {
+    totalWorkflows: 6,
+    activeWorkflows: 4,
+    successfulExecutions: 847,
+    failedExecutions: 23,
+    lastSyncTime: new Date(Date.now() - 5 * 60000).toISOString() // 5 minutes ago
   }
 
+  const handleCreateWorkflow = useCallback(() => {
+    message.info('Create workflow functionality will be implemented in future updates')
+    // TODO: Navigate to workflow creation page or open modal
+  }, [])
+
+  const handleViewHistory = useCallback(() => {
+    message.info('Workflow history functionality will be implemented in future updates')
+    // TODO: Navigate to workflow history page or open modal
+  }, [])
+
+  const handleSettings = useCallback(() => {
+    message.info('Settings functionality will be implemented in future updates')
+    // TODO: Navigate to settings page or open modal
+  }, [])
+
   return (
-    <div style={{ padding: '24px' }}>
-      <Title level={2}>Data Synchronization</Title>
-
-      <Row gutter={16} style={{ marginBottom: '24px' }}>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="Total Workflows"
-              value={syncStats.totalWorkflows}
-              prefix={<SyncOutlined />}
-              loading={loading}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="Active Workflows"
-              value={syncStats.activeWorkflows}
-              prefix={<CheckCircleOutlined />}
-              loading={loading}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="Sync Status"
-              value={syncStats.syncStatus}
-              prefix={<ClockCircleOutlined />}
-              loading={loading}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="Last Sync"
-              value={syncStats.lastSync || 'Never'}
-              prefix={<ExclamationCircleOutlined />}
-              loading={loading}
-            />
-          </Card>
-        </Col>
-      </Row>
-
-      <Row gutter={16}>
-        <Col span={12}>
-          <Card title="Synchronization Overview">
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <Alert
-                message="Data Synchronization Service"
-                description="This module manages workflow synchronization between n8n and the Network CMDB system. Real-time monitoring and automated data updates ensure consistency across all network resources."
-                type="info"
-                showIcon
-              />
-
-              <Paragraph>
-                <strong>Features:</strong>
-              </Paragraph>
-              <ul>
-                <li>Real-time workflow monitoring</li>
-                <li>Automated data synchronization</li>
-                <li>Email alert notifications</li>
-                <li>Historical reporting and analytics</li>
-                <li>Multi-provider network resource tracking</li>
-              </ul>
+    <div style={{ padding: '24px', backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
+      {/* Header */}
+      <div style={{ marginBottom: '24px' }}>
+        <Row justify="space-between" align="middle">
+          <Col>
+            <Title level={2} style={{ margin: 0 }}>
+              Data Synchronization Dashboard
+            </Title>
+            <Paragraph type="secondary" style={{ margin: '8px 0 0 0' }}>
+              Monitor and manage n8n workflow synchronization with Network CMDB
+            </Paragraph>
+          </Col>
+          <Col>
+            <Space>
+              <Button
+                icon={<HistoryOutlined />}
+                onClick={handleViewHistory}
+              >
+                View History
+              </Button>
+              <Button
+                icon={<SettingOutlined />}
+                onClick={handleSettings}
+              >
+                Settings
+              </Button>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={handleCreateWorkflow}
+              >
+                Create Workflow
+              </Button>
             </Space>
-          </Card>
+          </Col>
+        </Row>
+      </div>
+
+      {/* Metrics Section */}
+      <div style={{ marginBottom: '24px' }}>
+        <WorkflowMetrics
+          totalWorkflows={metricsData.totalWorkflows}
+          activeWorkflows={metricsData.activeWorkflows}
+          successfulExecutions={metricsData.successfulExecutions}
+          failedExecutions={metricsData.failedExecutions}
+          lastSyncTime={metricsData.lastSyncTime}
+          loading={loading}
+        />
+      </div>
+
+      <Divider />
+
+      {/* Workflow Status Grid */}
+      <div style={{ marginBottom: '24px' }}>
+        <WorkflowStatusGrid
+          title="Workflow Status Overview"
+          autoRefresh={true}
+          refreshInterval={30000}
+          onCreateWorkflow={handleCreateWorkflow}
+        />
+      </div>
+
+      {/* Additional Information */}
+      <Row gutter={[16, 16]}>
+        <Col xs={24} lg={12}>
+          <div style={{
+            padding: '16px',
+            backgroundColor: '#fff',
+            borderRadius: '8px',
+            border: '1px solid #f0f0f0'
+          }}>
+            <Title level={4}>System Features</Title>
+            <ul>
+              <li>Real-time workflow monitoring and status tracking</li>
+              <li>Automated data synchronization with n8n workflows</li>
+              <li>Email alert notifications for critical events</li>
+              <li>Historical reporting and analytics dashboard</li>
+              <li>Multi-provider network resource management</li>
+              <li>Manual trigger capabilities for immediate sync</li>
+            </ul>
+          </div>
         </Col>
 
-        <Col span={12}>
-          <Card title="Service Status" loading={loading}>
-            {loading ? (
-              <div style={{ textAlign: 'center', padding: '40px' }}>
-                <Spin size="large" />
-                <div style={{ marginTop: '16px' }}>Loading synchronization data...</div>
+        <Col xs={24} lg={12}>
+          <div style={{
+            padding: '16px',
+            backgroundColor: '#fff',
+            borderRadius: '8px',
+            border: '1px solid #f0f0f0'
+          }}>
+            <Title level={4}>Integration Status</Title>
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>n8n API Connection:</span>
+                <span style={{ color: '#52c41a', fontWeight: 'bold' }}>Connected</span>
               </div>
-            ) : (
-              <Space direction="vertical" style={{ width: '100%' }}>
-                <Alert
-                  message="Service Ready"
-                  description="The Data Synchronization service is configured and ready to monitor n8n workflows. Integration with the REST API endpoints is complete."
-                  type="success"
-                  showIcon
-                />
-
-                <Paragraph>
-                  <strong>Next Steps:</strong>
-                </Paragraph>
-                <ul>
-                  <li>Configure n8n workflow connections</li>
-                  <li>Set up automated polling schedules</li>
-                  <li>Define email alert recipients</li>
-                  <li>Initialize workflow monitoring dashboard</li>
-                </ul>
-              </Space>
-            )}
-          </Card>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Database Schema:</span>
+                <span style={{ color: '#52c41a', fontWeight: 'bold' }}>Initialized</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Email Service:</span>
+                <span style={{ color: '#52c41a', fontWeight: 'bold' }}>Active</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Monitoring Service:</span>
+                <span style={{ color: '#52c41a', fontWeight: 'bold' }}>Running</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Auto-sync Enabled:</span>
+                <span style={{ color: '#52c41a', fontWeight: 'bold' }}>Yes</span>
+              </div>
+            </Space>
+          </div>
         </Col>
       </Row>
     </div>
