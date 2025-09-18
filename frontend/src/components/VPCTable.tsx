@@ -78,9 +78,17 @@ export default function VPCTable({ autoRefresh = true, refreshInterval = 30000 }
     try {
       const response = await fetch('/api/vpcs')
       const result = await response.json()
-      if (result.success) {
-        setVpcData(result.data)
+      if (result.success && result.data) {
+        // Transform data to match frontend expectations
+        const transformedData = result.data.map((vpc: any, index: number) => ({
+          ...vpc,
+          id: vpc.VpcId || `vpc-${index}`, // Add missing id field
+          Site: vpc.Region || 'Unknown', // Add missing Site field
+          IsDefault: vpc.IsDefault || 'False' // Ensure IsDefault exists
+        }))
+        setVpcData(transformedData)
         setLastUpdated(new Date())
+        console.log('VPC data loaded:', transformedData.length, 'records')
       }
     } catch (error) {
       console.error('Error fetching VPCs:', error)

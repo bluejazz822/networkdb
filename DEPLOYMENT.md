@@ -1,446 +1,445 @@
-# Network CMDB Production Deployment Guide
+# Network CMDB - Multi-Cloud VPC Data Synchronization
 
 ## Overview
 
-This guide covers the production deployment of the Network CMDB application using Docker containers with externalized configuration files. The application consists of two main components:
+This guide covers deploying the Network CMDB system with multi-cloud VPC data synchronization capabilities in a production environment using Docker.
 
-- **Backend**: Node.js/Express API server with TypeScript
-- **Frontend**: React application served via Nginx
+## Recent Updates (v2.0.0)
 
-## Recent Updates (v1.0.1)
+**Multi-Cloud Provider Support:**
+- AWS VPCs: 157 records from `vpc_info` table
+- Alibaba Cloud VPCs: 7 records from `ali_vpc_info` table
+- Azure VPCs: 1 record from `azure_vpc_info` table
+- Huawei Cloud VPCs: 2 records from `hwc_vpc_info` table
 
-**Port Configuration Changed:**
-- Backend now runs on port 3301 (previously 3001)
-- Production: http://localhost:3301
-- Staging: http://localhost:3302 (mapped to container 3301)
+**Dynamic Dashboard:**
+- Real-time aggregation of 167 VPCs across all providers
+- Provider-specific visualization with color coding
+- Auto-refresh every 30 seconds
+- Smart column detection and rendering
 
-**Dependencies Updated:**
-- ESLint upgraded to v9.35.0 with improved TypeScript support
-- Removed deprecated packages (csurf, rimraf v2/v3)
-- Fixed npm deprecation warnings for cleaner builds
-- Updated TypeScript ESLint plugins for better compatibility
+**Microservice Architecture:**
+- Dedicated data synchronization microservice
+- Provider-specific API endpoints `/api/vpcs/{provider}`
+- Dynamic schema mapping for different cloud provider data formats
 
 ## Architecture
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│                 │    │                 │    │                 │
-│   Frontend      │────│    Backend      │────│   MySQL DB      │
-│   (Nginx)       │    │   (Node.js)     │    │   (External)    │
-│   Port: 80      │    │   Port: 3301    │    │   Port: 44060   │
-│                 │    │                 │    │                 │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
+┌─────────────────────┐    ┌──────────────────────┐    ┌────────────────────┐
+│  Frontend Dashboard │    │  Data Sync Backend   │    │   MySQL Database   │
+│     (React/Nginx)   │────│    (Node.js/TS)     │────│  Multi-Cloud VPC   │
+│     Port: 8080      │    │    Port: 3302        │    │    Port: 44060     │
+│                     │    │                      │    │                    │
+│ Multi-Provider UI   │    │ Provider-Specific    │    │ • vpc_info (AWS)   │
+│ • AWS VPC Table     │    │ API Endpoints:       │    │ • ali_vpc_info     │
+│ • Ali VPC Table     │    │ • /api/vpcs/aws      │    │ • azure_vpc_info   │
+│ • Azure VPC Table   │    │ • /api/vpcs/ali      │    │ • hwc_vpc_info     │
+│ • Huawei VPC Table  │    │ • /api/vpcs/azure    │    │                    │
+│ • Aggregated Stats  │    │ • /api/vpcs/huawei   │    │ Total: 167 VPCs    │
+└─────────────────────┘    └──────────────────────┘    └────────────────────┘
 ```
 
 ## Prerequisites
 
 - Docker Engine 20.10+ and Docker Compose 2.0+
-- MySQL database accessible at 172.16.30.62:44060
+- MySQL database accessible at 172.16.30.62:44060 with VPC data tables
 - Minimum 2GB RAM and 10GB storage
 - Linux/Unix environment (tested on Ubuntu 20.04+)
+- Network access to database server with VPC inventory data
 
 ## Directory Structure
 
 ```
 networkdb/
 ├── backend/
-│   ├── Dockerfile
-│   ├── .dockerignore
-│   └── src/
+│   ├── Dockerfile.datasync         # Microservice backend Dockerfile
+│   ├── src/server-minimal.ts       # Multi-provider API server
+│   └── tsconfig.minimal.json       # TypeScript configuration
 ├── frontend/
-│   ├── Dockerfile
-│   ├── .dockerignore
-│   ├── nginx.conf
+│   ├── Dockerfile.datasync         # Frontend Dockerfile
+│   ├── nginx.datasync.conf         # Nginx proxy configuration
 │   └── src/
-├── docker-compose.yml
-├── docker-compose.staging.yml
-├── .env.production
-├── .env.staging
-├── logs/
-├── config/
-└── DEPLOYMENT.md
+│       ├── MinimalApp.tsx          # Multi-provider dashboard
+│       ├── components/
+│       │   ├── DynamicTable.tsx    # Schema-adaptive table
+│       │   └── ProviderNetworkPage.tsx
+│       └── contexts/AuthContext.tsx
+├── docker-compose.datasync.yml     # Microservice deployment
+└── DEPLOYMENT.md                   # This documentation
 ```
 
-## Configuration Management
+## Database Tables
 
-### Environment Files (Stored Outside Containers)
+The system connects to existing VPC data tables:
 
-#### `.env.production`
-Contains production environment variables:
+| Provider | Table Name | Records | Description |
+|----------|------------|---------|-------------|
+| AWS | `vpc_info` | 157 | AWS VPC inventory |
+| Alibaba Cloud | `ali_vpc_info` | 7 | Aliyun VPC data |
+| Azure | `azure_vpc_info` | 1 | Azure VNet data |
+| Huawei Cloud | `hwc_vpc_info` | 2 | Huawei Cloud VPC data |
+| **Total** | | **167** | **All Providers** |
+
+## Environment Configuration
+
+### Database Connection
 ```bash
 DB_HOST=172.16.30.62
 DB_PORT=44060
 DB_NAME=mydatabase
 DB_USER=root
-DB_PASSWORD=your-secure-password
-NODE_ENV=production
-PORT=3301
-FRONTEND_URL=http://localhost:80
-SESSION_SECRET=your-super-secure-session-secret
+DB_PASSWORD=Gq34Ko90#110
 ```
 
-#### `.env.staging`
-Contains staging environment variables with different ports and database names.
-
-### Required Directory Structure
-Create the following directories before deployment:
-
+### Optional Services (N8N, Email)
 ```bash
-mkdir -p logs/backend logs/frontend logs/staging/backend logs/staging/frontend
-mkdir -p config/backend config/frontend config/staging/backend config/staging/frontend
+N8N_BASE_URL=http://172.16.30.60:5678
+N8N_API_KEY=your_n8n_api_key
+SMTP_HOST=your_smtp_host
+SMTP_PORT=587
+SMTP_USER=your_smtp_user
+SMTP_PASSWORD=your_smtp_password
+EMAIL_FROM=noreply@networkdb.local
 ```
 
-## Deployment Steps
+## Quick Start Deployment
 
-### 1. Pre-deployment Setup
+### 1. Clone Repository
 
 ```bash
-# Clone the repository
 git clone <your-repo-url> networkdb
 cd networkdb
-
-# Create required directories
-mkdir -p logs/{backend,frontend,staging/{backend,frontend}}
-mkdir -p config/{backend,frontend,staging/{backend,frontend}}
-
-# Set proper permissions
-chmod 755 logs/ config/
-chmod 644 .env.production .env.staging
 ```
 
-### 2. Environment Configuration
-
-**CRITICAL**: Update the environment files with your actual credentials:
+### 2. Deploy Microservice Stack
 
 ```bash
-# Edit production environment
-nano .env.production
+# Deploy data synchronization microservice
+docker compose -f docker-compose.datasync.yml up -d --build
 
-# Edit staging environment (if needed)
-nano .env.staging
+# Verify deployment status
+docker ps --filter name=datasync
+
+# Check service health
+curl http://localhost:3302/health  # Backend health
+curl http://localhost:8080         # Frontend dashboard
 ```
 
-**Security Notes**:
-- Never commit `.env.*` files to version control
-- Use strong passwords and rotate them regularly
-- Consider using Docker secrets for sensitive data
+### 3. Access Applications
 
-### 3. Build and Deploy
+- **Frontend Dashboard**: http://localhost:8080
+- **Backend API**: http://localhost:3302
+- **Health Check**: http://localhost:3302/health
 
-#### Production Deployment
+### 4. Verify Multi-Provider Data
 
 ```bash
-# Build and start all services
-docker-compose up -d --build
+# Test all provider endpoints
+curl http://localhost:8080/api/vpcs/aws | jq '.total'     # Should return 157
+curl http://localhost:8080/api/vpcs/ali | jq '.total'     # Should return 7
+curl http://localhost:8080/api/vpcs/azure | jq '.total'   # Should return 1
+curl http://localhost:8080/api/vpcs/huawei | jq '.total'  # Should return 2
 
-# Check deployment status
-docker-compose ps
-docker-compose logs -f
-
-# Verify health checks
-docker-compose exec backend curl http://localhost:3301/health
-docker-compose exec frontend curl http://localhost:80/health
+# Test database tables discovery
+curl http://localhost:3302/api/database/tables | jq '.data.vpc_tables'
 ```
 
-#### Staging Deployment
+### 5. Frontend Navigation
+
+Access the multi-provider VPC inventory:
+- **AWS VPCs**: http://localhost:8080/vpcs/aws
+- **Alibaba Cloud**: http://localhost:8080/vpcs/ali
+- **Azure VNets**: http://localhost:8080/vpcs/azure
+- **Huawei Cloud**: http://localhost:8080/vpcs/huawei
+- **Dashboard**: http://localhost:8080/dashboard (aggregated view)
+
+## API Endpoints
+
+### Multi-Provider VPC Data
+
+| Endpoint | Provider | Expected Records | Description |
+|----------|----------|------------------|-------------|
+| `/api/vpcs/aws` | AWS | 157 | AWS VPC inventory |
+| `/api/vpcs/ali` | Alibaba Cloud | 7 | Aliyun VPC data |
+| `/api/vpcs/azure` | Azure | 1 | Azure VNet data |
+| `/api/vpcs/huawei` | Huawei Cloud | 2 | Huawei Cloud VPC data |
+
+### System Endpoints
 
 ```bash
-# Build and start staging services
-docker-compose -f docker-compose.staging.yml up -d --build
+# Health monitoring
+GET /health
 
-# Check staging status
-docker-compose -f docker-compose.staging.yml ps
+# Database discovery
+GET /api/database/tables
 
-# Verify staging endpoints
-curl http://localhost:3302/health  # Staging backend (external port)
-curl http://localhost:8080/        # Staging frontend
+# Individual VPC lookup
+GET /api/vpcs/{provider}/{id}
 ```
 
-**Staging Port Mapping:**
-- Frontend: External port 8080 → Container port 80
-- Backend: External port 3302 → Container port 3301
-- Database: External MySQL at 172.16.30.62:44060
+### Example API Response
 
-### 4. Deployment Verification
-
-#### Health Checks
-```bash
-# Backend health
-curl http://localhost:3301/health
-
-# Frontend health (through nginx)
-curl http://localhost:80/health
-
-# Full application test
-curl http://localhost:80/api/vpcs
-```
-
-#### Expected Responses
-- Backend health: `{"status":"ok","timestamp":"...","service":"network-cmdb-backend","version":"1.0.0"}`
-- Frontend: Should serve the React application
-- API: Should return VPC data from database
+```json
+{
+  "success": true,
+  "data": [...],
+  "total": 157,
+  "provider": "aws",
+  "tableName": "vpc_info",
+  "message": "AWS VPC data retrieved successfully from vpc_info",
+  "schema": [
+    {
+      "name": "VpcId",
+      "type": "varchar",
+      "displayType": "code",
+      "filterable": true,
+      "sortable": true,
+      "editable": true
+    }
+  ]
+}
 
 ## Service Management
 
-### Starting Services
+### Starting/Stopping Services
 ```bash
-# Production
-docker-compose up -d
+# Start microservice stack
+docker compose -f docker-compose.datasync.yml up -d
 
-# Staging
-docker-compose -f docker-compose.staging.yml up -d
-```
-
-### Stopping Services
-```bash
-# Production
-docker-compose down
-
-# Staging
-docker-compose -f docker-compose.staging.yml down
-```
-
-### Restarting Services
-```bash
-# Restart all services
-docker-compose restart
+# Stop microservice stack
+docker compose -f docker-compose.datasync.yml down
 
 # Restart specific service
-docker-compose restart backend
-docker-compose restart frontend
+docker compose -f docker-compose.datasync.yml restart datasync-backend
+docker compose -f docker-compose.datasync.yml restart datasync-frontend
 ```
 
 ### Updating Application
 ```bash
-# Pull latest code
+# Pull latest code changes
 git pull origin main
 
 # Rebuild and restart
-docker-compose down
-docker-compose up -d --build
+docker compose -f docker-compose.datasync.yml down
+docker compose -f docker-compose.datasync.yml up -d --build
 
-# Verify deployment
-docker-compose logs -f
+# Monitor deployment
+docker logs datasync-backend --tail 50 -f
+docker logs datasync-frontend --tail 20 -f
 ```
 
-## Monitoring and Maintenance
-
-### Log Management
+### Scaling for Production
 ```bash
-# View live logs
-docker-compose logs -f
+# Scale backend for high load
+docker compose -f docker-compose.datasync.yml up -d --scale datasync-backend=3
 
-# View specific service logs
-docker-compose logs -f backend
-docker-compose logs -f frontend
-
-# Log files location
-ls -la logs/backend/
-ls -la logs/frontend/
+# Use load balancer for multiple frontend instances
+docker compose -f docker-compose.datasync.yml up -d --scale datasync-frontend=2
 ```
 
-### Container Management
+## Monitoring and Troubleshooting
+
+### Container Status
 ```bash
-# Check container status
-docker ps
+# Check container health
+docker ps --filter name=datasync
 
-# Check resource usage
-docker stats
+# Monitor resource usage
+docker stats datasync-backend datasync-frontend
 
-# Clean up unused resources
-docker system prune -f
-docker volume prune -f
+# View container logs
+docker logs datasync-backend --tail 50
+docker logs datasync-frontend --tail 20
 ```
 
-### Database Connectivity
+### Database Connectivity Issues
 ```bash
-# Test database connection from backend container
-docker-compose exec backend node -e "
-const { Sequelize } = require('sequelize');
-const sequelize = new Sequelize({
-  dialect: 'mysql',
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  database: process.env.DB_NAME,
-  username: process.env.DB_USER,
-  password: process.env.DB_PASSWORD
-});
-sequelize.authenticate().then(() => console.log('DB OK')).catch(console.error);
-"
+# Test database connection
+docker exec datasync-backend curl -f http://localhost:3302/health
+
+# Check database table discovery
+curl http://localhost:3302/api/database/tables
+
+# Verify VPC table access
+curl http://localhost:3302/api/vpcs/aws | jq '{success, total, message}'
 ```
-
-## Security Considerations
-
-### Container Security
-- Containers run as non-root users
-- Read-only configuration mounts
-- Limited network access
-- Health checks implemented
-- Resource limits configured
-
-### Network Security
-```bash
-# Check network isolation
-docker network ls
-docker network inspect network-cmdb-network
-```
-
-### File Permissions
-```bash
-# Set secure permissions
-chmod 600 .env.production .env.staging
-chmod 755 logs/ config/
-chown -R 1001:1001 logs/ config/
-```
-
-## Backup and Recovery
-
-### Configuration Backup
-```bash
-# Backup environment files
-tar -czf networkdb-config-$(date +%Y%m%d).tar.gz .env.* config/
-
-# Store in secure location
-mv networkdb-config-*.tar.gz /backup/location/
-```
-
-### Application State
-```bash
-# Export container images
-docker save network-cmdb-backend:latest | gzip > backend-image.tar.gz
-docker save network-cmdb-frontend:latest | gzip > frontend-image.tar.gz
-```
-
-### Recovery Process
-```bash
-# Restore configuration
-tar -xzf networkdb-config-YYYYMMDD.tar.gz
-
-# Import images (if needed)
-docker load < backend-image.tar.gz
-docker load < frontend-image.tar.gz
-
-# Restart services
-docker-compose up -d
-```
-
-## Troubleshooting
 
 ### Common Issues
 
-#### Database Connection Failed
+#### 1. Database Connection Failed
 ```bash
-# Check database connectivity
-docker-compose exec backend ping 172.16.30.62
-docker-compose exec backend nc -zv 172.16.30.62 44060
+# Check network connectivity to database
+docker exec datasync-backend ping 172.16.30.62
 
-# Check environment variables
-docker-compose exec backend env | grep DB_
+# Verify database credentials in container
+docker exec datasync-backend env | grep DB_
+
+# Test each VPC table individually
+curl http://localhost:3302/api/vpcs/aws    # Should return 157 records
+curl http://localhost:3302/api/vpcs/ali    # Should return 7 records
+curl http://localhost:3302/api/vpcs/azure  # Should return 1 record
+curl http://localhost:3302/api/vpcs/huawei # Should return 2 records
 ```
 
-#### Frontend Not Accessible
+#### 2. Frontend Not Loading VPC Data
 ```bash
-# Check nginx logs
-docker-compose logs frontend
+# Check API proxy through nginx
+curl http://localhost:8080/api/vpcs/aws
 
-# Check port binding
-netstat -tulpn | grep :80
+# Verify nginx configuration
+docker exec datasync-frontend cat /etc/nginx/nginx.conf | grep -A 10 "location /api"
+
+# Check frontend container logs
+docker logs datasync-frontend --tail 30
 ```
 
-#### Backend API Errors
+#### 3. Empty VPC Tables
 ```bash
-# Check backend logs
-docker-compose logs backend
+# Verify table exists and has data
+curl http://localhost:3302/api/database/tables | jq '.data.vpc_tables'
 
-# Check backend health
-docker-compose exec backend curl http://localhost:3301/health
+# Check specific table schema
+curl http://localhost:3302/api/vpcs/aws | jq '.schema[0:3]'
 ```
 
-### Performance Tuning
+## Security Features
 
-#### Resource Limits
-Add to docker-compose.yml:
-```yaml
-services:
-  backend:
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: '0.5'
-        reservations:
-          memory: 512M
-          cpus: '0.25'
+### Built-in Security
+- **Containers run as non-root users** (nodejs:1001)
+- **Rate limiting**: 100 requests per 15 minutes per IP
+- **CORS protection**: Configured for specific origins
+- **Helmet security headers**: CSP, HSTS, etc.
+- **Health checks**: Automated container health monitoring
+
+### Network Security
+```bash
+# Verify isolated network
+docker network ls | grep datasync
+docker network inspect datasync-network
+
+# Check exposed ports only
+docker ps --filter name=datasync --format "table {{.Names}}\t{{.Ports}}"
 ```
 
-#### Database Connection Pooling
-Already configured in backend with:
-- Max connections: 1
-- Connection timeout: 10s
-- Pool timeout: 30s
+### Database Security
+- **Connection pooling**: Limited concurrent connections
+- **Connection timeout**: 10 second timeout prevents hanging connections
+- **SQL injection protection**: Parameterized queries with Sequelize ORM
+
+## Production Features
+
+### Dashboard Capabilities
+- **Multi-provider aggregation**: Real-time stats from all 4 cloud providers
+- **Auto-refresh**: Updates every 30 seconds
+- **167 total VPCs**: AWS (157) + Ali (7) + Azure (1) + Huawei (2)
+- **Provider-specific pages**: Individual tables for each cloud provider
+
+### Dynamic Table Features
+- **Schema auto-detection**: Adapts to different database table structures
+- **Smart rendering**: IDs as copyable code, regions as tags, status as badges
+- **Real-time filtering**: Search and filter across all columns
+- **Export functionality**: CSV/Excel export with current filters
+- **In-line editing**: Edit VPC data with permission controls
+
+### API Features
+- **Provider routing**: `/api/vpcs/{provider}` supports aws, ali, azure, huawei
+- **Schema transformation**: Converts database schema to frontend format
+- **Flexible field mapping**: Handles VpcId, vpc_id, VNetName, id variations
+- **Health monitoring**: Built-in health checks and error handling
+
+### Backup and Recovery
+
+```bash
+# Backup container images
+docker save network-cmdb-datasync:latest | gzip > datasync-backend.tar.gz
+docker save network-cmdb-datasync-frontend:latest | gzip > datasync-frontend.tar.gz
+
+# Restore from backup
+gunzip -c datasync-backend.tar.gz | docker load
+gunzip -c datasync-frontend.tar.gz | docker load
+
+# Redeploy
+docker compose -f docker-compose.datasync.yml up -d
+```
 
 ## Production Checklist
 
-### Pre-deployment
-- [ ] Environment files configured with production values
-- [ ] Database connectivity verified
-- [ ] SSL certificates installed (if using HTTPS)
-- [ ] Firewall rules configured
-- [ ] Resource monitoring setup
+### Pre-deployment Verification
+- [ ] Docker and Docker Compose installed
+- [ ] Network access to MySQL database (172.16.30.62:44060)
+- [ ] Ports 3302 and 8080 available
+- [ ] Sufficient resources (2GB RAM, 10GB storage)
 
-### Post-deployment
-- [ ] Health checks passing
-- [ ] Application accessible via browser
-- [ ] API endpoints responding correctly
-- [ ] Database queries working
-- [ ] Log rotation configured
-- [ ] Backup procedures tested
-
-### Security Checklist
-- [ ] Environment files secured (600 permissions)
-- [ ] Containers running as non-root
-- [ ] Network isolation verified
-- [ ] Security headers configured in nginx
-- [ ] Database credentials rotated
-
-## Support and Maintenance
-
-### Log Rotation
+### Post-deployment Verification
 ```bash
-# Setup logrotate for Docker logs
-sudo nano /etc/logrotate.d/docker-compose
+# Check all services are running
+docker ps --filter name=datasync
+
+# Verify database connectivity
+curl http://localhost:3302/health
+
+# Test all provider endpoints
+for provider in aws ali azure huawei; do
+  echo "Testing $provider:"
+  curl -s http://localhost:8080/api/vpcs/$provider | jq '{provider, total, success}'
+done
+
+# Verify frontend loads
+curl -I http://localhost:8080
 ```
 
-### Automated Updates
+### Expected Results
+- Backend health check: `{"status": "healthy"}`
+- AWS VPCs: 157 records
+- Alibaba Cloud VPCs: 7 records
+- Azure VPCs: 1 record
+- Huawei Cloud VPCs: 2 records
+- Dashboard: Aggregated 167 VPCs with provider breakdown
+
+## Performance Optimization
+
+### Container Resource Limits (Already Configured)
+```yaml
+# Backend: 512MB RAM, 0.5 CPU
+# Frontend: 128MB RAM, 0.25 CPU
+deploy:
+  resources:
+    limits:
+      memory: 512M
+      cpus: '0.5'
+```
+
+### Database Connection Pooling (Optimized)
+- Max connections: 5
+- Min connections: 1
+- Connection timeout: 10s
+- Acquire timeout: 30s
+
+## Maintenance and Updates
+
+### Automated Update Script
 ```bash
-# Create update script
-cat > update-networkdb.sh << 'EOF'
 #!/bin/bash
+# update-datasync.sh
 cd /path/to/networkdb
 git pull origin main
-docker-compose down
-docker-compose up -d --build
-docker-compose logs -f --tail=50
-EOF
-
-chmod +x update-networkdb.sh
+docker compose -f docker-compose.datasync.yml down
+docker compose -f docker-compose.datasync.yml up -d --build
+echo "Deployment complete! Verify at http://localhost:8080"
 ```
 
-### Monitoring Setup
+### Health Monitoring
 ```bash
-# Add monitoring endpoints
-curl http://localhost:3301/health | jq .
-curl http://localhost:80/api/vpcs | jq '.total'
+# Monitor service health
+watch -n 30 'curl -s http://localhost:3302/health | jq .status'
+
+# Monitor VPC data totals
+watch -n 60 'echo "AWS: $(curl -s http://localhost:8080/api/vpcs/aws | jq .total) Ali: $(curl -s http://localhost:8080/api/vpcs/ali | jq .total) Azure: $(curl -s http://localhost:8080/api/vpcs/azure | jq .total) Huawei: $(curl -s http://localhost:8080/api/vpcs/huawei | jq .total)"'
 ```
-
-## Contact Information
-
-For deployment issues or questions:
-- System Administrator: [your-email]
-- Development Team: [dev-team-email]
-- Emergency Contact: [emergency-contact]
 
 ---
 
+**Version**: 2.0.0 - Multi-Cloud VPC Data Synchronization
 **Last Updated**: September 2025
-**Version**: 1.0.1 - Updated for port 3301
+**Repository**: Network CMDB with Multi-Provider Support

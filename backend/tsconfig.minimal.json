@@ -21,19 +21,10 @@
     "noImplicitThis": false,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "exactOptionalPropertyTypes": false,
-    "baseUrl": "./src",
-    "paths": {
-      "@/*": ["*"],
-      "@/config/*": ["config/*"],
-      "@/utils/*": ["utils/*"],
-      "@/types/*": ["types/*"],
-      "@/database/*": ["database/*"],
-      "@/migrations/*": ["migrations/*"]
-    }
+    "exactOptionalPropertyTypes": false
   },
   "include": [
-    "src/**/*"
+    "src/server-minimal.ts"
   ],
   "exclude": [
     "node_modules",

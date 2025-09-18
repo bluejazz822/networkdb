@@ -1,7 +1,22 @@
 {
   "permissions": {
     "allow": [
-      "WebSearch"
+      "WebSearch",
+      "Bash(git push:*)",
+      "Bash(./deploy.sh:*)",
+      "Bash(./scripts/validate-config.sh:*)",
+      "Bash(docker system prune:*)",
+      "Bash(docker:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx tsc:*)",
+      "Bash(curl:*)",
+      "Bash(lsof:*)",
+      "Bash(open http://localhost:8080/vpcs/aws)",
+      "Bash(open http://localhost:8080/vpcs/ali)",
+      "Bash(open http://localhost:8080/vpcs/azure)",
+      "Bash(open http://localhost:8080/vpcs/huawei)",
+      "Bash(open http://localhost:8080/dashboard)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

@@ -27,19 +27,48 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 const { Header, Sider, Content } = Layout
 const { Title } = Typography
 
+// Helper functions for provider colors
+const getProviderColor = (provider?: string) => {
+  switch (provider?.toLowerCase()) {
+    case 'aws': return '#FF9900'
+    case 'ali': return '#FF6A00'
+    case 'azure': return '#0078D4'
+    case 'huawei': return '#FF0000'
+    default: return '#1890ff'
+  }
+}
+
+const getProviderTagColor = (provider?: string) => {
+  switch (provider?.toLowerCase()) {
+    case 'aws': return 'orange'
+    case 'ali': return 'red'
+    case 'azure': return 'blue'
+    case 'huawei': return 'volcano'
+    default: return 'default'
+  }
+}
+
 interface VPCData {
   VpcId?: string;
   vpc_id?: string;
+  VNetName?: string; // Azure
   Region?: string;
   region?: string;
+  Location?: string; // Azure
   CidrBlock?: string;
   cidr_block?: string;
+  AddressSpaces?: string; // Azure
   AccountId?: string;
   owner_id?: string;
+  SubscriptionId?: string; // Azure
+  ResourceGroup?: string; // Azure
   Name?: string;
   'ENV Name'?: string;
   tags?: { Environment?: string };
   state?: string;
+  status?: string;
+  provider?: string;
+  providerIcon?: string;
 }
 
 function MinimalDashboard() {
@@ -50,17 +79,38 @@ function MinimalDashboard() {
   const fetchVPCs = React.useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/vpcs');
-      const result = await response.json();
-      if (result.success) {
-        setVpcData(result.data);
-        setLastUpdated(new Date());
-      }
+      // Fetch data from all cloud providers with data
+      const providers = ['aws', 'ali', 'azure', 'huawei'];
+      const fetchPromises = providers.map(async (provider) => {
+        try {
+          const response = await fetch(`/api/vpcs/${provider}`);
+          const result = await response.json();
+          if (result.success) {
+            // Add provider info to each VPC record
+            return result.data.map((vpc: any) => ({
+              ...vpc,
+              provider: provider.toUpperCase(),
+              providerIcon: provider
+            }));
+          }
+          return [];
+        } catch (error) {
+          console.log(`Could not fetch ${provider} VPC data:`, error);
+          return [];
+        }
+      });
+
+      const results = await Promise.all(fetchPromises);
+      const allVpcData = results.flat();
+
+      setVpcData(allVpcData);
+      setLastUpdated(new Date());
+      console.log(`Dashboard loaded ${allVpcData.length} VPCs from ${providers.length} providers`);
     } catch (error) {
       console.log('Could not fetch VPC data from API, using mock data');
       setVpcData([
-        { vpc_id: 'vpc-12345', region: 'us-east-1', cidr_block: '10.0.0.0/16', state: 'available' },
-        { vpc_id: 'vpc-67890', region: 'us-west-2', cidr_block: '10.1.0.0/16', state: 'available' }
+        { vpc_id: 'vpc-12345', region: 'us-east-1', cidr_block: '10.0.0.0/16', state: 'available', provider: 'MOCK' },
+        { vpc_id: 'vpc-67890', region: 'us-west-2', cidr_block: '10.1.0.0/16', state: 'available', provider: 'MOCK' }
       ]);
       setLastUpdated(new Date());
     } finally {
@@ -74,9 +124,19 @@ function MinimalDashboard() {
     return () => clearInterval(interval);
   }, [fetchVPCs]);
 
-  const regions = [...new Set(vpcData.map(vpc => vpc.Region || vpc.region).filter(Boolean))];
-  const accounts = [...new Set(vpcData.map(vpc => vpc.AccountId || vpc.owner_id).filter(Boolean))];
-  const environments = [...new Set(vpcData.map(vpc => vpc['ENV Name'] || vpc.tags?.Environment).filter(Boolean))];
+  const regions = [...new Set(vpcData.map(vpc =>
+    vpc.Region || vpc.region || vpc.Location || vpc.Site
+  ).filter(Boolean))];
+
+  const accounts = [...new Set(vpcData.map(vpc =>
+    vpc.AccountId || vpc.owner_id || vpc.SubscriptionId || vpc.Tenant
+  ).filter(Boolean))];
+
+  const environments = [...new Set(vpcData.map(vpc =>
+    vpc['ENV Name'] || vpc.tags?.Environment
+  ).filter(Boolean))];
+
+  const providers = [...new Set(vpcData.map(vpc => vpc.provider).filter(Boolean))];
 
   return (
     <div style={{ padding: '24px' }}>
@@ -110,11 +170,16 @@ function MinimalDashboard() {
         <Col span={6}>
           <Card>
             <Statistic
-              title="AWS Accounts"
-              value={accounts.length}
-              prefix={<BranchesOutlined />}
+              title="Cloud Providers"
+              value={providers.length}
+              prefix={<CloudServerOutlined />}
               loading={loading}
             />
+            {providers.length > 0 && (
+              <div style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
+                {providers.join(', ')}
+              </div>
+            )}
           </Card>
         </Col>
         <Col span={6}>
@@ -134,7 +199,7 @@ function MinimalDashboard() {
           <Card title="Network CMDB Status">
             <p>This is a Network Configuration Management Database for managing cloud network resources.</p>
             <p>Navigate to <strong>VPCs</strong> in the sidebar to view the comprehensive real-time inventory table.</p>
-            <p><strong>Database Status:</strong> {vpcData.length > 0 ? '✅ Connected to MySQL database' : '⚠️ Using mock data'}</p>
+            <p><strong>Database Status:</strong> {vpcData.length > 0 ? `✅ Connected to MySQL database (${providers.length} providers)` : '⚠️ Using mock data'}</p>
             {lastUpdated && (
               <p><strong>Last Updated:</strong> {lastUpdated.toLocaleString()}</p>
             )}
@@ -154,28 +219,39 @@ function MinimalDashboard() {
             {vpcData.length > 0 ? (
               <div>
                 <p><strong>Latest VPCs from Database:</strong></p>
-                {vpcData.slice(0, 4).map((vpc, index) => (
-                  <div key={vpc.VpcId || vpc.vpc_id || index} style={{ 
-                    marginBottom: '12px', 
-                    padding: '12px', 
-                    background: '#f5f5f5', 
-                    borderRadius: '6px',
-                    borderLeft: '4px solid #1890ff'
-                  }}>
-                    <div style={{ marginBottom: '4px' }}>
-                      <strong>{vpc.VpcId || vpc.vpc_id}</strong>
-                      {vpc.Name && <span style={{ marginLeft: '8px', color: '#666' }}>({vpc.Name})</span>}
+                {vpcData.slice(0, 4).map((vpc, index) => {
+                  const vpcId = vpc.VpcId || vpc.vpc_id || vpc.VNetName || vpc.id
+                  const vpcName = vpc.Name || vpc.VNetName
+                  const region = vpc.Region || vpc.region || vpc.Location || vpc.Site
+                  const cidr = vpc.CidrBlock || vpc.cidr_block || vpc.AddressSpaces
+                  const account = vpc.AccountId || vpc.owner_id || vpc.SubscriptionId || vpc.Tenant
+
+                  return (
+                    <div key={vpcId || index} style={{
+                      marginBottom: '12px',
+                      padding: '12px',
+                      background: '#f5f5f5',
+                      borderRadius: '6px',
+                      borderLeft: `4px solid ${getProviderColor(vpc.provider)}`
+                    }}>
+                      <div style={{ marginBottom: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <strong>{vpcId}</strong>
+                          {vpcName && <span style={{ marginLeft: '8px', color: '#666' }}>({vpcName})</span>}
+                        </div>
+                        <Tag color={getProviderTagColor(vpc.provider)} size="small">
+                          {vpc.provider}
+                        </Tag>
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>
+                        <span>{region}</span>
+                        {cidr && <> • <span>{cidr}</span></>}
+                        {account && <> • <span>{account}</span></>}
+                        {vpc['ENV Name'] && <> • <span>{vpc['ENV Name']}</span></>}
+                      </div>
                     </div>
-                    <div style={{ fontSize: '12px', color: '#666' }}>
-                      <span>{vpc.Region || vpc.region}</span> • 
-                      <span style={{ marginLeft: '4px' }}>{vpc.CidrBlock || vpc.cidr_block}</span> • 
-                      <span style={{ marginLeft: '4px' }}>{vpc.AccountId || vpc.owner_id}</span>
-                      {vpc['ENV Name'] && (
-                        <span style={{ marginLeft: '4px' }}>• {vpc['ENV Name']}</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
                 <div style={{ textAlign: 'center', marginTop: '16px' }}>
                   <p style={{ margin: 0, color: '#666' }}>
                     Showing 4 of {vpcData.length} total VPCs

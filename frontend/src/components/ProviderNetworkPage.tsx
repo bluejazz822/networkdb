@@ -65,9 +65,10 @@ export default function ProviderNetworkPage({ networkType }: ProviderNetworkPage
   const getApiEndpoint = (networkType: string, provider: string) => {
     switch (networkType) {
       case 'vpcs':
-        // Only AWS VPCs should use real data from VPC_VPC_info table
-        if (provider === 'aws') {
-          return '/api/vpcs'
+        // All providers with data available
+        const supportedVpcProviders = ['aws', 'ali', 'azure', 'huawei']
+        if (supportedVpcProviders.includes(provider)) {
+          return `/api/vpcs/${provider}`
         }
         // Other providers return null to show empty state
         return null
@@ -78,7 +79,7 @@ export default function ProviderNetworkPage({ networkType }: ProviderNetworkPage
         // No data association needed for any providers yet
         return null
       case 'devices':
-        // No data association needed for any providers yet  
+        // No data association needed for any providers yet
         return null
       default:
         return null

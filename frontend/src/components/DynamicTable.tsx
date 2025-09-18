@@ -87,12 +87,23 @@ export default function DynamicTable({
     try {
       const response = await fetch(apiEndpoint)
       const result = await response.json()
-      if (result.success) {
-        setData(result.data)
+      if (result.success && result.data) {
+        // Transform data if it's VPC data
+        let transformedData = result.data
+        if (apiEndpoint.includes('/vpcs')) {
+          transformedData = result.data.map((item: any, index: number) => ({
+            ...item,
+            id: item.VpcId || item.id || `item-${index}`,
+            Site: item.Region || item.Site || 'Unknown'
+          }))
+        }
+
+        setData(transformedData)
         if (result.schema) {
           setSchema(result.schema)
         }
         setLastUpdated(new Date())
+        console.log('Dynamic table data loaded:', transformedData.length, 'records')
       }
     } catch (error) {
       console.error('Error fetching data:', error)
@@ -133,6 +144,10 @@ export default function DynamicTable({
 
   // Helper functions - format column titles for display
   const formatColumnTitle = (name: string) => {
+    if (!name || typeof name !== 'string') {
+      console.warn('formatColumnTitle received invalid name:', name)
+      return 'Unknown Column'
+    }
     return name.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())
   }
 
