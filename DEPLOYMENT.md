@@ -7,13 +7,15 @@ This guide covers deploying the Network CMDB system with multi-cloud VPC data sy
 ## Recent Updates (v2.0.0)
 
 **Multi-Cloud Provider Support:**
-- AWS VPCs: 157 records from `vpc_info` table
-- Alibaba Cloud VPCs: 7 records from `ali_vpc_info` table
-- Azure VPCs: 1 record from `azure_vpc_info` table
-- Huawei Cloud VPCs: 2 records from `hwc_vpc_info` table
+- AWS VPCs: 89 records from `vpc_info` table
+- Alibaba Cloud VPCs: 30 records from `ali_vpc_info` table
+- Azure VPCs: 30 records from `azure_vpc_info` table
+- Huawei Cloud VPCs: 18 records from `hwc_vpc_info` table
+- Oracle Cloud (OCI) VPCs: 4 records from `oci_vpc_info` table ✨ **NEW**
+- Other/On-premises VPCs: 8 records from `other_vpc_info` table ✨ **NEW**
 
 **Dynamic Dashboard:**
-- Real-time aggregation of 167 VPCs across all providers
+- Real-time aggregation of 179 VPCs across all providers (6 cloud providers)
 - Provider-specific visualization with color coding
 - Auto-refresh every 30 seconds
 - Smart column detection and rendering
@@ -35,8 +37,10 @@ This guide covers deploying the Network CMDB system with multi-cloud VPC data sy
 │ • AWS VPC Table     │    │ API Endpoints:       │    │ • ali_vpc_info     │
 │ • Ali VPC Table     │    │ • /api/vpcs/aws      │    │ • azure_vpc_info   │
 │ • Azure VPC Table   │    │ • /api/vpcs/ali      │    │ • hwc_vpc_info     │
-│ • Huawei VPC Table  │    │ • /api/vpcs/azure    │    │                    │
-│ • Aggregated Stats  │    │ • /api/vpcs/huawei   │    │ Total: 167 VPCs    │
+│ • Huawei VPC Table  │    │ • /api/vpcs/azure    │    │ • oci_vpc_info     │
+│ • OCI VPC Table     │    │ • /api/vpcs/huawei   │    │ • other_vpc_info   │
+│ • Others VPC Table  │    │ • /api/vpcs/oci      │    │                    │
+│ • Aggregated Stats  │    │ • /api/vpcs/others   │    │ Total: 179 VPCs    │
 └─────────────────────┘    └──────────────────────┘    └────────────────────┘
 ```
 

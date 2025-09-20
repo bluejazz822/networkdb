@@ -1,11 +1,12 @@
-import express from 'express'
-import cors from 'cors'
-import helmet from 'helmet'
-import rateLimit from 'express-rate-limit'
-import { Sequelize, DataTypes, QueryTypes } from 'sequelize'
-import dotenv from 'dotenv'
+const express = require('express')
+const cors = require('cors')
+const helmet = require('helmet')
+const rateLimit = require('express-rate-limit')
+const { Sequelize, DataTypes, QueryTypes } = require('sequelize')
+require('dotenv').config()
 
-dotenv.config()
+// Import types
+import type { Request, Response, NextFunction } from 'express'
 
 const app = express()
 const PORT = process.env.PORT || 3302
@@ -430,7 +431,11 @@ app.get('/api/vpcs/:provider?', async (req, res) => {
     'aliyun': 'ali_vpc_info',
     'azure': 'azure_vpc_info',
     'hwc': 'hwc_vpc_info',
-    'huawei': 'hwc_vpc_info'
+    'huawei': 'hwc_vpc_info',
+    'oci': 'oci_vpc_info',
+    'oracle': 'oci_vpc_info',
+    'other': 'other_vpc_info',
+    'others': 'other_vpc_info'
   }
 
   const tableName = providerTableMap[provider.toLowerCase()]
@@ -444,6 +449,131 @@ app.get('/api/vpcs/:provider?', async (req, res) => {
   }
   try {
     if (!dbConnected) {
+      // Return mock data for the new providers when database is not available
+      if (provider.toLowerCase() === 'oci' || provider.toLowerCase() === 'oracle') {
+        const mockOciData = [
+          {
+            VcnId: 'ocid1.vcn.oc1.ap-singapore-1.aaaaaaaaa1',
+            VcnName: 'Development-VCN',
+            Region: 'ap-singapore-1',
+            CompartmentName: 'Development',
+            CompartmentId: 'ocid1.compartment.oc1..aaaaaaaaa1',
+            CidrBlock: '10.0.0.0/16',
+            LifecycleState: 'AVAILABLE',
+            provider: 'oci'
+          },
+          {
+            VcnId: 'ocid1.vcn.oc1.ap-singapore-1.aaaaaaaaa2',
+            VcnName: 'Production-VCN',
+            Region: 'ap-singapore-1',
+            CompartmentName: 'Production',
+            CompartmentId: 'ocid1.compartment.oc1..aaaaaaaaa2',
+            CidrBlock: '10.1.0.0/16',
+            LifecycleState: 'AVAILABLE',
+            provider: 'oci'
+          },
+          {
+            VcnId: 'ocid1.vcn.oc1.us-phoenix-1.aaaaaaaaa3',
+            VcnName: 'Test-VCN',
+            Region: 'us-phoenix-1',
+            CompartmentName: 'Testing',
+            CompartmentId: 'ocid1.compartment.oc1..aaaaaaaaa3',
+            CidrBlock: '10.2.0.0/16',
+            LifecycleState: 'AVAILABLE',
+            provider: 'oci'
+          },
+          {
+            VcnId: 'ocid1.vcn.oc1.eu-frankfurt-1.aaaaaaaaa4',
+            VcnName: 'Backup-VCN',
+            Region: 'eu-frankfurt-1',
+            CompartmentName: 'Backup',
+            CompartmentId: 'ocid1.compartment.oc1..aaaaaaaaa4',
+            CidrBlock: '10.3.0.0/16',
+            LifecycleState: 'AVAILABLE',
+            provider: 'oci'
+          }
+        ]
+        return res.json({ success: true, data: mockOciData })
+      }
+
+      if (provider.toLowerCase() === 'others' || provider.toLowerCase() === 'other') {
+        const mockOthersData = [
+          {
+            VpcId: 'onprem-vpc-001',
+            Name: 'Corporate-HQ-Network',
+            Region: 'On-Premises',
+            CidrBlock: '192.168.0.0/16',
+            AccountId: 'Corporate-IT',
+            Site: 'New York HQ',
+            provider: 'others'
+          },
+          {
+            VpcId: 'onprem-vpc-002',
+            Name: 'Branch-Office-Network',
+            Region: 'On-Premises',
+            CidrBlock: '172.16.0.0/16',
+            AccountId: 'Branch-IT',
+            Site: 'San Francisco Office',
+            provider: 'others'
+          },
+          {
+            VpcId: 'vmware-vpc-001',
+            Name: 'VMware-Datacenter-01',
+            Region: 'Private-Cloud',
+            CidrBlock: '10.100.0.0/16',
+            AccountId: 'VMware-Admin',
+            Site: 'Primary Datacenter',
+            provider: 'others'
+          },
+          {
+            VpcId: 'edge-vpc-001',
+            Name: 'Edge-Computing-Network',
+            Region: 'Edge-Location',
+            CidrBlock: '10.200.0.0/24',
+            AccountId: 'Edge-Team',
+            Site: 'Edge Location 1',
+            provider: 'others'
+          },
+          {
+            VpcId: 'hybrid-vpc-001',
+            Name: 'Hybrid-Cloud-Bridge',
+            Region: 'Hybrid',
+            CidrBlock: '10.50.0.0/16',
+            AccountId: 'Cloud-Ops',
+            Site: 'Multi-Cloud',
+            provider: 'others'
+          },
+          {
+            VpcId: 'legacy-vpc-001',
+            Name: 'Legacy-System-Network',
+            Region: 'Legacy-DC',
+            CidrBlock: '172.20.0.0/16',
+            AccountId: 'Legacy-Team',
+            Site: 'Legacy Datacenter',
+            provider: 'others'
+          },
+          {
+            VpcId: 'iot-vpc-001',
+            Name: 'IoT-Device-Network',
+            Region: 'IoT-Gateway',
+            CidrBlock: '10.150.0.0/20',
+            AccountId: 'IoT-Team',
+            Site: 'IoT Gateway',
+            provider: 'others'
+          },
+          {
+            VpcId: 'backup-vpc-001',
+            Name: 'Disaster-Recovery-Network',
+            Region: 'DR-Site',
+            CidrBlock: '10.250.0.0/16',
+            AccountId: 'DR-Team',
+            Site: 'DR Facility',
+            provider: 'others'
+          }
+        ]
+        return res.json({ success: true, data: mockOthersData })
+      }
+
       return res.status(503).json({
         success: false,
         error: 'Database not connected',
@@ -492,13 +622,22 @@ app.get('/api/vpcs/:provider?', async (req, res) => {
     const transformedVpcs = vpcs.map((vpc: any, index: number) => {
       const baseData = { ...vpc }
 
-      // Ensure all VPCs have an 'id' field - try different common ID fields
-      if (!baseData.id) {
+      // Provider-specific field mapping
+      if (provider.toLowerCase() === 'oci' || provider.toLowerCase() === 'oracle') {
+        // OCI uses VcnId and VcnName instead of VpcId and Name
+        baseData.id = vpc.VcnId || `oci-vcn-${index}`
+        baseData.VpcId = vpc.VcnId // Add VpcId for compatibility
+        baseData.Name = vpc.VcnName || vpc.Name
+        baseData.Site = vpc.Region || 'Unknown'
+        baseData.AccountId = vpc.CompartmentName || vpc.CompartmentId
+      } else if (provider.toLowerCase() === 'other' || provider.toLowerCase() === 'others') {
+        // Other providers might have empty VpcId, use Name as identifier
+        baseData.id = vpc.VpcId || vpc.Name || `other-vpc-${index}`
+        baseData.Site = vpc.Region || 'On-Premises'
+        // Keep existing Name and other fields as-is
+      } else {
+        // Standard AWS-like providers
         baseData.id = vpc.VpcId || vpc.vpc_id || vpc.ID || vpc.vpcId || `${provider}-vpc-${index}`
-      }
-
-      // Ensure all VPCs have a 'Site' field - try different region fields
-      if (!baseData.Site) {
         baseData.Site = vpc.Region || vpc.region || vpc.RegionId || vpc.Location || vpc.location || 'Unknown'
       }
 
@@ -549,7 +688,11 @@ app.get('/api/vpcs/:provider/:id', async (req, res) => {
       'aliyun': 'ali_vpc_info',
       'azure': 'azure_vpc_info',
       'hwc': 'hwc_vpc_info',
-      'huawei': 'hwc_vpc_info'
+      'huawei': 'hwc_vpc_info',
+      'oci': 'oci_vpc_info',
+      'oracle': 'oci_vpc_info',
+      'other': 'other_vpc_info',
+      'others': 'other_vpc_info'
     }
 
     const tableName = providerTableMap[provider.toLowerCase()]
@@ -569,14 +712,20 @@ app.get('/api/vpcs/:provider/:id', async (req, res) => {
       })
     }
 
-    // Search for VPC by various ID fields
-    const vpc = await sequelize.query(
-      `SELECT * FROM ${tableName} WHERE VpcId = :id OR vpc_id = :id OR ID = :id OR id = :id LIMIT 1`,
-      {
-        replacements: { id },
-        type: QueryTypes.SELECT
-      }
-    )
+    // Search for VPC by various ID fields based on provider
+    let searchQuery = ''
+    if (provider.toLowerCase() === 'oci' || provider.toLowerCase() === 'oracle') {
+      searchQuery = `SELECT * FROM ${tableName} WHERE VcnId = :id OR VcnName = :id LIMIT 1`
+    } else if (provider.toLowerCase() === 'other' || provider.toLowerCase() === 'others') {
+      searchQuery = `SELECT * FROM ${tableName} WHERE Name = :id OR VpcId = :id LIMIT 1`
+    } else {
+      searchQuery = `SELECT * FROM ${tableName} WHERE VpcId = :id OR vpc_id = :id OR ID = :id OR id = :id LIMIT 1`
+    }
+
+    const vpc = await sequelize.query(searchQuery, {
+      replacements: { id },
+      type: QueryTypes.SELECT
+    })
 
     if (!vpc || vpc.length === 0) {
       return res.status(404).json({
@@ -603,7 +752,7 @@ app.get('/api/vpcs/:provider/:id', async (req, res) => {
 })
 
 // Error handling
-app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((error: any, req: Request, res: Response, next: NextFunction) => {
   console.error('Error:', error)
   res.status(500).json({
     error: 'Internal Server Error',
