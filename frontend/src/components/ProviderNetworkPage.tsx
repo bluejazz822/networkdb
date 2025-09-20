@@ -66,7 +66,7 @@ export default function ProviderNetworkPage({ networkType }: ProviderNetworkPage
     switch (networkType) {
       case 'vpcs':
         // All providers with data available
-        const supportedVpcProviders = ['aws', 'ali', 'azure', 'huawei']
+        const supportedVpcProviders = ['aws', 'ali', 'azure', 'huawei', 'oci', 'others']
         if (supportedVpcProviders.includes(provider)) {
           return `/api/vpcs/${provider}`
         }

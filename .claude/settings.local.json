@@ -16,7 +16,11 @@
       "Bash(open http://localhost:8080/vpcs/azure)",
       "Bash(open http://localhost:8080/vpcs/huawei)",
       "Bash(open http://localhost:8080/dashboard)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(node:*)",
+      "Bash(npx ts-node:*)",
+      "Bash(npm run dev:*)"
     ],
     "deny": [],
     "ask": []

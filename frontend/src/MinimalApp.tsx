@@ -34,6 +34,8 @@ const getProviderColor = (provider?: string) => {
     case 'ali': return '#FF6A00'
     case 'azure': return '#0078D4'
     case 'huawei': return '#FF0000'
+    case 'oci': return '#F80000'
+    case 'others': return '#722ED1'
     default: return '#1890ff'
   }
 }
@@ -44,6 +46,8 @@ const getProviderTagColor = (provider?: string) => {
     case 'ali': return 'red'
     case 'azure': return 'blue'
     case 'huawei': return 'volcano'
+    case 'oci': return 'red'
+    case 'others': return 'purple'
     default: return 'default'
   }
 }
@@ -52,6 +56,8 @@ interface VPCData {
   VpcId?: string;
   vpc_id?: string;
   VNetName?: string; // Azure
+  VcnId?: string; // OCI
+  VcnName?: string; // OCI
   Region?: string;
   region?: string;
   Location?: string; // Azure
@@ -62,6 +68,9 @@ interface VPCData {
   owner_id?: string;
   SubscriptionId?: string; // Azure
   ResourceGroup?: string; // Azure
+  CompartmentName?: string; // OCI
+  CompartmentId?: string; // OCI
+  LifecycleState?: string; // OCI
   Name?: string;
   'ENV Name'?: string;
   tags?: { Environment?: string };
@@ -80,7 +89,7 @@ function MinimalDashboard() {
     setLoading(true);
     try {
       // Fetch data from all cloud providers with data
-      const providers = ['aws', 'ali', 'azure', 'huawei'];
+      const providers = ['aws', 'ali', 'azure', 'huawei', 'oci', 'others'];
       const fetchPromises = providers.map(async (provider) => {
         try {
           const response = await fetch(`/api/vpcs/${provider}`);
@@ -220,11 +229,11 @@ function MinimalDashboard() {
               <div>
                 <p><strong>Latest VPCs from Database:</strong></p>
                 {vpcData.slice(0, 4).map((vpc, index) => {
-                  const vpcId = vpc.VpcId || vpc.vpc_id || vpc.VNetName || vpc.id
-                  const vpcName = vpc.Name || vpc.VNetName
+                  const vpcId = vpc.VpcId || vpc.vpc_id || vpc.VNetName || vpc.VcnId || vpc.id
+                  const vpcName = vpc.Name || vpc.VNetName || vpc.VcnName
                   const region = vpc.Region || vpc.region || vpc.Location || vpc.Site
                   const cidr = vpc.CidrBlock || vpc.cidr_block || vpc.AddressSpaces
-                  const account = vpc.AccountId || vpc.owner_id || vpc.SubscriptionId || vpc.Tenant
+                  const account = vpc.AccountId || vpc.owner_id || vpc.SubscriptionId || vpc.CompartmentName || vpc.Tenant
 
                   return (
                     <div key={vpcId || index} style={{
