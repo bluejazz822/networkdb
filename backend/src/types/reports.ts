@@ -1,9 +1,22 @@
 /**
  * Report Types and Interfaces
  * Defines all report-related types for the network CMDB reporting system
+ *
+ * NOTE: Database schema interfaces are defined in /database/schema/reports.ts
+ * This file contains application-level types and interfaces that extend the base schema
  */
 
-import { ResourceType } from './search';
+import { ResourceType, FilterOperator } from './search';
+import {
+  ReportsTable,
+  ReportExecutionsTable,
+  ReportType as DbReportType,
+  ReportCategory as DbReportCategory,
+  CloudProvider as DbCloudProvider,
+  OutputFormat as DbOutputFormat,
+  ExecutionStatus as DbExecutionStatus,
+  TriggerType as DbTriggerType
+} from '../database/schema/reports';
 
 // ===================== CHART AND WIDGET TYPES =====================
 
@@ -91,25 +104,36 @@ export interface StatusItem {
 
 // ===================== REPORT DEFINITION TYPES =====================
 
-export interface ReportDefinition {
-  id?: number;
-  name: string;
-  description?: string;
-  category: ReportCategory;
-  type: ReportType;
+/**
+ * Application-level report definition that extends database schema
+ * Maps to ReportsTable but adds application-specific fields
+ */
+export interface ReportDefinition extends Omit<ReportsTable, 'created_at' | 'updated_at'> {
+  // Application-specific fields
   template?: ReportTemplate;
-  query: ReportQuery;
+  query: ReportQuery; // Enhanced query interface
   visualization?: ReportVisualization;
-  schedule?: ReportSchedule;
+  schedule?: ReportSchedule; // Enhanced schedule interface
   permissions: ReportPermissions;
   metadata: ReportMetadata;
-  createdBy: number;
-  createdAt?: Date;
-  updatedAt?: Date;
+
+  // Renamed fields to match application conventions
+  type: ReportDisplayType; // Separate from database report_type
+  createdBy: number; // Maps to created_by
+  createdAt?: Date; // Maps to created_at
+  updatedAt?: Date; // Maps to updated_at
 }
 
-export type ReportCategory = 'inventory' | 'compliance' | 'performance' | 'security' | 'utilization' | 'custom';
-export type ReportType = 'tabular' | 'chart' | 'dashboard' | 'hybrid';
+// Database-aligned enums
+export type ReportCategory = DbReportCategory;
+export type ReportType = DbReportType;
+export type CloudProvider = DbCloudProvider;
+export type ExportFormat = DbOutputFormat;
+export type ExecutionStatus = DbExecutionStatus;
+export type TriggerType = DbTriggerType;
+
+// Application-level report display types (separate from database report_type)
+export type ReportDisplayType = 'tabular' | 'chart' | 'dashboard' | 'hybrid';
 
 export interface ReportTemplate {
   id: string;
@@ -155,15 +179,7 @@ export interface ReportFilter {
   logicalOperator?: 'AND' | 'OR' | 'NOT';
 }
 
-export type FilterOperator = 
-  | 'equals' | 'not_equals' 
-  | 'greater_than' | 'greater_than_equal'
-  | 'less_than' | 'less_than_equal'
-  | 'in' | 'not_in'
-  | 'like' | 'not_like'
-  | 'starts_with' | 'ends_with'
-  | 'exists' | 'not_exists'
-  | 'between';
+// FilterOperator is imported from search.ts to avoid duplication
 
 export interface ReportSort {
   field: string;
@@ -231,7 +247,7 @@ export interface StorageDelivery {
 
 // ===================== EXPORT AND SHARING TYPES =====================
 
-export type ExportFormat = 'pdf' | 'excel' | 'csv' | 'json' | 'html';
+// ExportFormat is now imported from database schema as DbOutputFormat
 
 export interface ReportExportOptions {
   format: ExportFormat;
@@ -269,24 +285,25 @@ export interface ReportShare {
 
 // ===================== REPORT EXECUTION TYPES =====================
 
-export interface ReportExecution {
-  id?: number;
-  reportId: number;
-  status: ExecutionStatus;
-  startTime: Date;
-  endTime?: Date;
-  executionTime?: number; // milliseconds
-  recordCount?: number;
-  fileSize?: number; // bytes
-  filePath?: string;
-  errorMessage?: string;
-  parameters?: Record<string, any>;
-  executedBy: number;
-  metadata?: ExecutionMetadata;
+/**
+ * Application-level report execution that extends database schema
+ * Maps to ReportExecutionsTable but adds application-specific fields
+ */
+export interface ReportExecution extends Omit<ReportExecutionsTable, 'created_at'> {
+  // Renamed fields to match application conventions
+  reportId: string; // Maps to report_id (keeping string as per DB)
+  executionTime?: number; // Maps to duration_ms
+  recordCount?: number; // Maps to records_processed
+  fileSize?: number; // Maps to output_size_bytes
+  filePath?: string; // Maps to output_location
+  executedBy?: number; // Maps to started_by
+  startTime: Date; // Maps to start_time
+  endTime?: Date; // Maps to end_time
+  parameters?: Record<string, any>; // Maps to execution_parameters
+  createdAt?: Date; // Maps to created_at
 }
 
-export type ExecutionStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
-
+// Legacy alias for backward compatibility
 export interface ExecutionMetadata {
   version: string;
   queryTime: number;
