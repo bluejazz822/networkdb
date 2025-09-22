@@ -378,32 +378,47 @@ export class WorkflowService {
           break;
       }
 
-      // Get workflow counts
-      const totalWorkflows = await WorkflowRegistry.count();
-      const activeWorkflows = await WorkflowRegistry.count({
-        where: { is_active: true }
-      });
+      // Get real n8n workflow data
+      const n8nWorkflowsResponse = await this.n8nService.discoverWorkflows();
+      if (!n8nWorkflowsResponse.success) {
+        return this.createErrorResponse({
+          code: n8nWorkflowsResponse.error?.code || 'CONNECTION_ERROR',
+          message: 'Failed to fetch workflows from n8n: ' + (n8nWorkflowsResponse.error?.message || 'Unknown error')
+        });
+      }
 
-      // Get execution counts for the time period
-      const executions = await WorkflowExecution.findAll({
-        where: {
-          start_time: {
-            [Op.gte]: startDate
+      const workflows = n8nWorkflowsResponse.data || [];
+      const totalWorkflows = workflows.length;
+      const activeWorkflows = workflows.filter(w => w.is_active).length;
+
+      // Get execution data from n8n for each workflow
+      let totalExecutionsToday = 0;
+      let successfulExecutionsToday = 0;
+      let failedExecutionsToday = 0;
+
+      for (const workflow of workflows) {
+        if (workflow.workflow_id) {
+          const executionsResponse = await this.n8nService.getWorkflowExecutionHistory(workflow.workflow_id, 100, 0);
+
+          if (executionsResponse.success && executionsResponse.data) {
+            const executions = executionsResponse.data.executions;
+            // Filter executions for today
+            const todayExecutions = executions.filter(exec => {
+              if (!exec.start_time) return false;
+              const execDate = new Date(exec.start_time);
+              return execDate >= startDate;
+            });
+
+            totalExecutionsToday += todayExecutions.length;
+            successfulExecutionsToday += todayExecutions.filter(e => e.status === 'success').length;
+            failedExecutionsToday += todayExecutions.filter(e => e.status === 'failure').length;
           }
-        },
-        attributes: ['status', 'duration_ms']
-      });
+        }
+      }
+      const runningExecutions = 0; // n8n doesn't track running in this simple format
 
-      const totalExecutionsToday = executions.length;
-      const successfulExecutionsToday = executions.filter(e => e.status === 'success').length;
-      const failedExecutionsToday = executions.filter(e => e.status === 'failure').length;
-      const runningExecutions = executions.filter(e => e.status === 'running').length;
-
-      // Calculate average execution time
-      const completedExecutions = executions.filter(e => e.duration_ms !== null);
-      const averageExecutionTime = completedExecutions.length > 0
-        ? completedExecutions.reduce((sum, e) => sum + (e.duration_ms || 0), 0) / completedExecutions.length
-        : 0;
+      // Calculate average execution time (n8n doesn't provide duration easily)
+      const averageExecutionTime = 0;
 
       // Determine system health
       const failureRate = totalExecutionsToday > 0 ? (failedExecutionsToday / totalExecutionsToday) : 0;
@@ -490,7 +505,7 @@ export class WorkflowService {
       });
     } catch (error) {
       return this.createErrorResponse({
-        code: 'ALERT_ERROR',
+        code: 'CONNECTION_ERROR',
         message: 'Failed to send failure alert',
         details: error
       });
@@ -510,7 +525,7 @@ export class WorkflowService {
       });
     } catch (error) {
       return this.createErrorResponse({
-        code: 'ALERT_ERROR',
+        code: 'CONNECTION_ERROR',
         message: 'Failed to send success alert',
         details: error
       });
@@ -557,7 +572,7 @@ export class WorkflowService {
       });
     } catch (error) {
       return this.createErrorResponse({
-        code: 'EMAIL_CONFIG_ERROR',
+        code: 'CONNECTION_ERROR',
         message: 'Failed to test email configuration',
         details: error
       });
@@ -581,7 +596,7 @@ export class WorkflowService {
 
       // Test database connection
       try {
-        await WorkflowRegistry.count({ limit: 1 });
+        await WorkflowRegistry.count();
       } catch (dbError) {
         healthStatus.services.database = 'disconnected';
         healthStatus.status = 'unhealthy';

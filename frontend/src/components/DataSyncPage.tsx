@@ -1,27 +1,29 @@
-import React, { useState, useCallback } from 'react'
+import React, { useCallback } from 'react'
 import { Typography, Row, Col, Space, Divider, Button, message } from 'antd'
 import { PlusOutlined, SettingOutlined, HistoryOutlined } from '@ant-design/icons'
 import WorkflowMetrics from './WorkflowMetrics'
 import WorkflowStatusGrid from './WorkflowStatusGrid'
+import { useWorkflowDashboard } from '@/hooks/useWorkflowStatus'
+import { useWorkflowActions } from '@/hooks/useWorkflowActions'
 
 const { Title, Paragraph } = Typography
 
 function DataSyncPage() {
-  const [loading, setLoading] = useState(false)
+  const { dashboard, isLoading, error, refetch } = useWorkflowDashboard()
+  const { syncWorkflows, isSyncing } = useWorkflowActions()
 
-  // Mock data for metrics - will be replaced with real API data
-  const metricsData = {
-    totalWorkflows: 6,
-    activeWorkflows: 4,
-    successfulExecutions: 847,
-    failedExecutions: 23,
-    lastSyncTime: new Date(Date.now() - 5 * 60000).toISOString() // 5 minutes ago
-  }
+  // Convert dashboard data to metrics format
+  const metricsData = dashboard ? {
+    totalWorkflows: dashboard.totalWorkflows,
+    activeWorkflows: dashboard.activeWorkflows,
+    successfulExecutions: dashboard.totalExecutions - (dashboard.recentExecutions?.filter(e => e.status === 'error').length || 0),
+    failedExecutions: dashboard.recentExecutions?.filter(e => e.status === 'error').length || 0,
+    lastSyncTime: dashboard.lastSyncAt || new Date().toISOString()
+  } : null
 
   const handleCreateWorkflow = useCallback(() => {
-    message.info('Create workflow functionality will be implemented in future updates')
-    // TODO: Navigate to workflow creation page or open modal
-  }, [])
+    syncWorkflows({ force: false })
+  }, [syncWorkflows])
 
   const handleViewHistory = useCallback(() => {
     message.info('Workflow history functionality will be implemented in future updates')
@@ -29,9 +31,9 @@ function DataSyncPage() {
   }, [])
 
   const handleSettings = useCallback(() => {
-    message.info('Settings functionality will be implemented in future updates')
-    // TODO: Navigate to settings page or open modal
-  }, [])
+    refetch()
+    message.success('Workflow data refreshed')
+  }, [refetch])
 
   return (
     <div style={{ padding: '24px', backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
@@ -58,14 +60,15 @@ function DataSyncPage() {
                 icon={<SettingOutlined />}
                 onClick={handleSettings}
               >
-                Settings
+                Refresh Data
               </Button>
               <Button
                 type="primary"
                 icon={<PlusOutlined />}
                 onClick={handleCreateWorkflow}
+                loading={isSyncing}
               >
-                Create Workflow
+                Sync Workflows
               </Button>
             </Space>
           </Col>
@@ -74,14 +77,35 @@ function DataSyncPage() {
 
       {/* Metrics Section */}
       <div style={{ marginBottom: '24px' }}>
-        <WorkflowMetrics
-          totalWorkflows={metricsData.totalWorkflows}
-          activeWorkflows={metricsData.activeWorkflows}
-          successfulExecutions={metricsData.successfulExecutions}
-          failedExecutions={metricsData.failedExecutions}
-          lastSyncTime={metricsData.lastSyncTime}
-          loading={loading}
-        />
+        {metricsData ? (
+          <WorkflowMetrics
+            totalWorkflows={metricsData.totalWorkflows}
+            activeWorkflows={metricsData.activeWorkflows}
+            successfulExecutions={metricsData.successfulExecutions}
+            failedExecutions={metricsData.failedExecutions}
+            lastSyncTime={metricsData.lastSyncTime}
+            loading={isLoading || isSyncing}
+          />
+        ) : error ? (
+          <div style={{
+            padding: '20px',
+            backgroundColor: '#fff',
+            borderRadius: '8px',
+            border: '1px solid #ff4d4f',
+            color: '#ff4d4f'
+          }}>
+            Failed to load workflow data: {error.message}
+          </div>
+        ) : (
+          <WorkflowMetrics
+            totalWorkflows={0}
+            activeWorkflows={0}
+            successfulExecutions={0}
+            failedExecutions={0}
+            lastSyncTime={new Date().toISOString()}
+            loading={true}
+          />
+        )}
       </div>
 
       <Divider />

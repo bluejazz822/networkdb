@@ -8,6 +8,9 @@ require('dotenv').config()
 // Import types
 import type { Request, Response, NextFunction } from 'express'
 
+// Import workflow services and controllers
+import { WorkflowController } from './controllers/WorkflowController';
+
 const app = express()
 const PORT = process.env.PORT || 3302
 
@@ -55,48 +58,6 @@ async function initializeDatabase() {
   }
 }
 
-// Mock workflow data for demonstration (fallback if needed)
-const mockWorkflows = [
-  {
-    id: 'wf-001',
-    workflow_id: 'vpc-sync-aws',
-    workflow_name: 'AWS VPC Synchronization',
-    workflow_type: 'vpc',
-    provider: 'aws',
-    is_active: true,
-    status: 'success',
-    last_execution: new Date().toISOString(),
-    success_rate: 95.2,
-    avg_duration: 45000,
-    executions_today: 24
-  },
-  {
-    id: 'wf-002',
-    workflow_id: 'subnet-sync-azure',
-    workflow_name: 'Azure Subnet Synchronization',
-    workflow_type: 'subnet',
-    provider: 'azure',
-    is_active: true,
-    status: 'running',
-    last_execution: new Date(Date.now() - 300000).toISOString(),
-    success_rate: 87.8,
-    avg_duration: 32000,
-    executions_today: 18
-  },
-  {
-    id: 'wf-003',
-    workflow_id: 'tgw-sync-aws',
-    workflow_name: 'AWS Transit Gateway Sync',
-    workflow_type: 'transit_gateway',
-    provider: 'aws',
-    is_active: false,
-    status: 'failure',
-    last_execution: new Date(Date.now() - 1800000).toISOString(),
-    success_rate: 76.4,
-    avg_duration: 67000,
-    executions_today: 0
-  }
-]
 
 // Security middleware
 app.use(helmet({
@@ -128,6 +89,9 @@ app.use('/api/', limiter)
 // Body parsing
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
+
+// Initialize services
+const workflowController = new WorkflowController();
 
 // Health check endpoint
 app.get('/health', async (req, res) => {
@@ -167,91 +131,8 @@ app.get('/', (req, res) => {
 })
 
 // Workflow API routes
-app.get('/api/workflows', (req, res) => {
-  res.json({
-    success: true,
-    data: mockWorkflows,
-    total: mockWorkflows.length,
-    message: 'Data Synchronization workflows retrieved successfully'
-  })
-})
-
-app.get('/api/workflows/status', (req, res) => {
-  const totalWorkflows = mockWorkflows.length
-  const activeWorkflows = mockWorkflows.filter(w => w.is_active).length
-  const successfulExecutions = mockWorkflows.reduce((sum, w) => sum + w.executions_today, 0)
-  const avgSuccessRate = mockWorkflows.reduce((sum, w) => sum + w.success_rate, 0) / totalWorkflows
-
-  res.json({
-    success: true,
-    data: {
-      totalWorkflows,
-      activeWorkflows,
-      successfulExecutions,
-      failedExecutions: Math.floor(successfulExecutions * (1 - avgSuccessRate / 100)),
-      avgSuccessRate: Math.round(avgSuccessRate * 10) / 10,
-      lastSyncTime: new Date().toISOString(),
-      systemHealth: 'healthy'
-    }
-  })
-})
-
-app.get('/api/workflows/:id/executions', (req, res) => {
-  const workflowId = req.params.id
-  const workflow = mockWorkflows.find(w => w.id === workflowId)
-
-  if (!workflow) {
-    return res.status(404).json({
-      success: false,
-      error: 'Workflow not found'
-    })
-  }
-
-  // Generate mock execution history
-  const executions = Array.from({ length: 10 }, (_, i) => ({
-    id: `exec-${workflowId}-${i + 1}`,
-    execution_id: `n8n-exec-${Date.now() - i * 3600000}`,
-    status: i < 8 ? 'success' : (i === 8 ? 'failure' : 'running'),
-    start_time: new Date(Date.now() - i * 3600000).toISOString(),
-    end_time: i === 9 ? null : new Date(Date.now() - i * 3600000 + 30000).toISOString(),
-    duration_ms: i === 9 ? null : 30000 + Math.floor(Math.random() * 60000),
-    resources_created: Math.floor(Math.random() * 10),
-    resources_updated: Math.floor(Math.random() * 5),
-    resources_failed: i === 8 ? 2 : 0
-  }))
-
-  res.json({
-    success: true,
-    data: executions,
-    total: executions.length
-  })
-})
-
-app.post('/api/workflows/:id/trigger', (req, res) => {
-  const workflowId = req.params.id
-  const workflow = mockWorkflows.find(w => w.id === workflowId)
-
-  if (!workflow) {
-    return res.status(404).json({
-      success: false,
-      error: 'Workflow not found'
-    })
-  }
-
-  // Simulate manual trigger
-  const executionId = `manual-${Date.now()}`
-
-  res.json({
-    success: true,
-    data: {
-      execution_id: executionId,
-      workflow_id: workflow.workflow_id,
-      status: 'triggered',
-      message: `Workflow "${workflow.workflow_name}" triggered successfully`,
-      estimated_duration: workflow.avg_duration
-    }
-  })
-})
+app.get('/api/workflows', workflowController.listWorkflows);
+app.get('/api/workflows/status', workflowController.getStatus);
 
 app.get('/api/workflows/health', (req, res) => {
   res.json({
@@ -572,6 +453,113 @@ app.get('/api/vpcs/:provider?', async (req, res) => {
           }
         ]
         return res.json({ success: true, data: mockOthersData })
+      }
+
+      if (provider.toLowerCase() === 'aws') {
+        const mockAwsData = [
+          {
+            VpcId: 'vpc-0123456789abcdef0',
+            Name: 'Production-VPC',
+            Region: 'us-east-1',
+            CidrBlock: '10.0.0.0/16',
+            AccountId: '123456789012',
+            State: 'available',
+            provider: 'aws'
+          },
+          {
+            VpcId: 'vpc-0987654321fedcba0',
+            Name: 'Development-VPC',
+            Region: 'us-west-2',
+            CidrBlock: '10.1.0.0/16',
+            AccountId: '123456789012',
+            State: 'available',
+            provider: 'aws'
+          },
+          {
+            VpcId: 'vpc-0abcdef123456789',
+            Name: 'Testing-VPC',
+            Region: 'eu-west-1',
+            CidrBlock: '10.2.0.0/16',
+            AccountId: '123456789012',
+            State: 'available',
+            provider: 'aws'
+          }
+        ]
+        return res.json({ success: true, data: mockAwsData })
+      }
+
+      if (provider.toLowerCase() === 'ali' || provider.toLowerCase() === 'alibaba') {
+        const mockAliData = [
+          {
+            VpcId: 'vpc-bp1234567890abcde',
+            Name: 'Production-VPC-Ali',
+            Region: 'cn-hangzhou',
+            CidrBlock: '172.16.0.0/16',
+            AccountId: 'ali-account-001',
+            Status: 'Available',
+            provider: 'ali'
+          },
+          {
+            VpcId: 'vpc-bp0987654321fedcb',
+            Name: 'Development-VPC-Ali',
+            Region: 'cn-beijing',
+            CidrBlock: '172.17.0.0/16',
+            AccountId: 'ali-account-001',
+            Status: 'Available',
+            provider: 'ali'
+          }
+        ]
+        return res.json({ success: true, data: mockAliData })
+      }
+
+      if (provider.toLowerCase() === 'azure') {
+        const mockAzureData = [
+          {
+            VnetId: '/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-prod/providers/Microsoft.Network/virtualNetworks/vnet-prod',
+            Name: 'Production-VNet',
+            Region: 'East US',
+            CidrBlock: '10.10.0.0/16',
+            ResourceGroup: 'rg-prod',
+            SubscriptionId: '12345678-1234-1234-1234-123456789012',
+            Status: 'Succeeded',
+            provider: 'azure'
+          },
+          {
+            VnetId: '/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-dev/providers/Microsoft.Network/virtualNetworks/vnet-dev',
+            Name: 'Development-VNet',
+            Region: 'West US 2',
+            CidrBlock: '10.11.0.0/16',
+            ResourceGroup: 'rg-dev',
+            SubscriptionId: '12345678-1234-1234-1234-123456789012',
+            Status: 'Succeeded',
+            provider: 'azure'
+          }
+        ]
+        return res.json({ success: true, data: mockAzureData })
+      }
+
+      if (provider.toLowerCase() === 'huawei') {
+        const mockHuaweiData = [
+          {
+            VpcId: 'vpc-hw1234567890abcde',
+            Name: 'Production-VPC-Huawei',
+            Region: 'cn-north-1',
+            CidrBlock: '192.168.0.0/16',
+            ProjectId: 'hw-project-001',
+            Status: 'ACTIVE',
+            provider: 'huawei'
+          },
+          {
+            VpcId: 'vpc-hw0987654321fedcb',
+            Name: 'Development-VPC-Huawei',
+            Region: 'ap-southeast-1',
+            CidrBlock: '192.168.1.0/24',
+            ProjectId: 'hw-project-001',
+            Status: 'ACTIVE',
+            provider: 'huawei'
+          }
+        ]
+        return res.json({ success: true, data: mockHuaweiData })
       }
 
       return res.status(503).json({

@@ -1,5 +1,6 @@
 import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Layout, Menu, Typography, Card, Row, Col, Statistic, Button, Space, Tag, Avatar, Dropdown } from 'antd'
 import {
   DashboardOutlined,
@@ -26,6 +27,17 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 
 const { Header, Sider, Content } = Layout
 const { Title } = Typography
+
+// Create a QueryClient instance
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 3,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      refetchOnWindowFocus: false,
+    },
+  },
+})
 
 // Helper functions for provider colors
 const getProviderColor = (provider?: string) => {
@@ -700,11 +712,18 @@ function AppContent() {
 
 function MinimalApp() {
   return (
-    <Router>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </Router>
+    <QueryClientProvider client={queryClient}>
+      <Router
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true
+        }}
+      >
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </Router>
+    </QueryClientProvider>
   )
 }
 

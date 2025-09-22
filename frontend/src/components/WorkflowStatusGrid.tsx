@@ -26,6 +26,7 @@ import {
 } from '@ant-design/icons'
 import WorkflowStatusCard, { WorkflowData } from './WorkflowStatusCard'
 import DynamicTable from './DynamicTable'
+import { apiClient } from '@/utils/api'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -37,8 +38,8 @@ interface WorkflowStatusGridProps {
   onCreateWorkflow?: () => void
 }
 
-// Mock data interface - will be replaced with real API data
-interface MockWorkflowResponse {
+// API response interface
+interface WorkflowResponse {
   success: boolean
   data: WorkflowData[]
   total: number
@@ -59,103 +60,47 @@ export default function WorkflowStatusGrid({
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(autoRefresh)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
 
-  // Mock data for development - will be replaced with actual API calls
-  const generateMockData = useCallback((): WorkflowData[] => {
-    return [
-      {
-        id: '1',
-        name: 'Network Device Discovery',
-        status: 'active',
-        lastExecution: new Date(Date.now() - 5 * 60000).toISOString(), // 5 minutes ago
-        executionCount: 147,
-        successRate: 98,
-        description: 'Automatically discover and catalog network devices across all provider networks',
-        nextExecution: new Date(Date.now() + 10 * 60000).toISOString() // 10 minutes from now
-      },
-      {
-        id: '2',
-        name: 'VPC Configuration Sync',
-        status: 'active',
-        lastExecution: new Date(Date.now() - 15 * 60000).toISOString(), // 15 minutes ago
-        executionCount: 89,
-        successRate: 95,
-        description: 'Synchronize VPC configurations and metadata from AWS, Azure, and GCP',
-        nextExecution: new Date(Date.now() + 30 * 60000).toISOString() // 30 minutes from now
-      },
-      {
-        id: '3',
-        name: 'Compliance Report Generator',
-        status: 'error',
-        lastExecution: new Date(Date.now() - 2 * 60 * 60000).toISOString(), // 2 hours ago
-        executionCount: 23,
-        successRate: 74,
-        description: 'Generate compliance reports for security and governance teams',
-        nextExecution: null
-      },
-      {
-        id: '4',
-        name: 'Backup Monitoring',
-        status: 'inactive',
-        lastExecution: new Date(Date.now() - 24 * 60 * 60000).toISOString(), // 24 hours ago
-        executionCount: 312,
-        successRate: 99,
-        description: 'Monitor backup status across all network infrastructure components',
-        nextExecution: null
-      },
-      {
-        id: '5',
-        name: 'Alert Notification Service',
-        status: 'pending',
-        lastExecution: null,
-        executionCount: 0,
-        successRate: 0,
-        description: 'Send email alerts for critical network events and threshold breaches',
-        nextExecution: new Date(Date.now() + 60 * 60000).toISOString() // 1 hour from now
-      },
-      {
-        id: '6',
-        name: 'Performance Analytics',
-        status: 'active',
-        lastExecution: new Date(Date.now() - 10 * 60000).toISOString(), // 10 minutes ago
-        executionCount: 203,
-        successRate: 92,
-        description: 'Collect and analyze performance metrics from network devices and services',
-        nextExecution: new Date(Date.now() + 20 * 60000).toISOString() // 20 minutes from now
-      }
-    ]
-  }, [])
 
   // Fetch workflows data
   const fetchWorkflows = useCallback(async () => {
     setLoading(true)
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/workflows')
-      // const result: MockWorkflowResponse = await response.json()
+      console.log('🔍 Fetching workflows from /workflows...')
+      const response = await apiClient.get<WorkflowResponse>('/workflows')
+      console.log('✅ Workflows response:', response)
 
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500))
+      const result = response.data
+      if (result.success && result.data && result.data.workflows && Array.isArray(result.data.workflows)) {
+        // Transform the API data to match WorkflowData interface
+        const transformedWorkflows: WorkflowData[] = result.data.workflows.map((workflow: any) => ({
+          id: workflow.workflow_id || workflow.id || String(Math.random()),
+          name: workflow.workflow_name || workflow.name || 'Unknown Workflow',
+          status: workflow.is_active ? 'active' : 'inactive',
+          lastExecution: workflow.updated_at || workflow.lastExecution || null,
+          executionCount: workflow.executionCount || 0,
+          successRate: workflow.successRate || 0,
+          description: workflow.description || `${workflow.workflow_type} workflow for ${workflow.provider}`,
+          nextExecution: workflow.nextExecution || null
+        }))
 
-      // Mock response
-      const result: MockWorkflowResponse = {
-        success: true,
-        data: generateMockData(),
-        total: 6
-      }
-
-      if (result.success) {
-        setWorkflows(result.data)
+        setWorkflows(transformedWorkflows)
         setLastUpdated(new Date())
+        console.log('📊 Transformed workflows:', transformedWorkflows)
       } else {
-        throw new Error('Failed to fetch workflows')
+        // If no workflows found, set empty array
+        setWorkflows([])
+        setLastUpdated(new Date())
+        console.log('ℹ️ No workflows found')
       }
     } catch (error) {
-      console.error('Error fetching workflows:', error)
+      console.error('❌ Error fetching workflows:', error)
       message.error('Failed to fetch workflow data')
+      // Set empty array on error
+      setWorkflows([])
     } finally {
       setLoading(false)
     }
-  }, [generateMockData])
+  }, [])
 
   // Initial load
   useEffect(() => {
@@ -186,14 +131,13 @@ export default function WorkflowStatusGrid({
   // Workflow action handlers
   const handleTriggerWorkflow = useCallback(async (workflowId: string) => {
     try {
-      // TODO: Replace with actual API call
-      // await fetch(`/api/workflows/${workflowId}/trigger`, { method: 'POST' })
-
+      console.log('🚀 Triggering workflow:', workflowId)
+      await apiClient.post(`/workflows/${workflowId}/trigger`)
       message.success('Workflow triggered successfully')
       // Refresh data after triggering
       setTimeout(fetchWorkflows, 1000)
     } catch (error) {
-      console.error('Error triggering workflow:', error)
+      console.error('❌ Error triggering workflow:', error)
       message.error('Failed to trigger workflow')
     }
   }, [fetchWorkflows])
@@ -210,12 +154,11 @@ export default function WorkflowStatusGrid({
 
   const handleToggleWorkflowStatus = useCallback(async (workflowId: string, newStatus: 'active' | 'inactive') => {
     try {
-      // TODO: Replace with actual API call
-      // await fetch(`/api/workflows/${workflowId}/status`, {
-      //   method: 'PUT',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ status: newStatus })
-      // })
+      console.log('🔄 Updating workflow status:', workflowId, newStatus)
+      await apiClient.put(`/workflows/${workflowId}/status`, {
+        status: newStatus,
+        is_active: newStatus === 'active'
+      })
 
       // Update local state optimistically
       setWorkflows(prev => prev.map(workflow =>
@@ -226,7 +169,7 @@ export default function WorkflowStatusGrid({
 
       message.success(`Workflow ${newStatus === 'active' ? 'activated' : 'paused'} successfully`)
     } catch (error) {
-      console.error('Error updating workflow status:', error)
+      console.error('❌ Error updating workflow status:', error)
       message.error('Failed to update workflow status')
       // Refresh to get actual state
       fetchWorkflows()
@@ -276,11 +219,10 @@ export default function WorkflowStatusGrid({
   }
 
   const renderTableView = () => {
-    // Use DynamicTable for table view with mock API endpoint
-    // TODO: Replace with actual workflow API endpoint
+    // Use DynamicTable for table view with real API endpoint
     return (
       <DynamicTable
-        apiEndpoint="/api/workflows"
+        apiEndpoint="/workflows"
         title="Workflows"
         icon={<SyncOutlined />}
         autoRefresh={autoRefreshEnabled}
@@ -312,7 +254,7 @@ export default function WorkflowStatusGrid({
                 />
               </Tooltip>
               <Tooltip title="Toggle View Mode">
-                <Button.Group>
+                <Space.Compact>
                   <Button
                     type={viewMode === 'grid' ? 'primary' : 'default'}
                     icon={<AppstoreOutlined />}
@@ -327,7 +269,7 @@ export default function WorkflowStatusGrid({
                   >
                     Table
                   </Button>
-                </Button.Group>
+                </Space.Compact>
               </Tooltip>
               {onCreateWorkflow && (
                 <Button
