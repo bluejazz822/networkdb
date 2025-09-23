@@ -6,6 +6,7 @@
 import { ValidationError } from 'joi';
 import { NetworkValidationSchemas, BusinessRuleValidators } from '../schemas';
 import { BaseRepository } from '../repositories/BaseRepository';
+import { Model } from 'sequelize';
 
 export interface ServiceError {
   code: string;
@@ -38,7 +39,7 @@ export interface QueryOptions {
   filters?: Record<string, any>;
 }
 
-export abstract class BaseService<TModel, TRepository extends BaseRepository<TModel>> {
+export abstract class BaseService<TModel, TRepository extends BaseRepository<any, any, any>> {
   constructor(protected repository: TRepository) {}
 
   /**
