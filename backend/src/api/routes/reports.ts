@@ -1,6 +1,7 @@
 /**
  * Reports API Routes
  * Comprehensive reporting endpoints for dashboard, charts, and report generation
+ * Enhanced with comprehensive security controls and audit logging
  */
 
 import { Router, Request, Response } from 'express';
@@ -11,9 +12,9 @@ import { validateRequest, asyncHandler } from '../middleware/validation';
 import { ReportValidationSchemas } from '../../schemas/reports';
 import Joi from 'joi';
 import crypto from 'crypto';
-import { 
-  ReportQuery, 
-  ReportDefinition, 
+import {
+  ReportQuery,
+  ReportDefinition,
   ExportFormat,
   ReportExportOptions,
   ChartConfiguration,
@@ -21,6 +22,19 @@ import {
 } from '../../types/reports';
 import { ResourceType } from '../../types/search';
 import { sequelize } from '../../config/database';
+
+// Security middleware imports
+import {
+  reportSecurityMiddleware,
+  requireReportPermission,
+  requireDataAccess,
+  requireExportPermission,
+  auditReportAccess,
+  addSecurityContext
+} from '../../middleware/ReportSecurityMiddleware';
+import { ReportPermissions, ReportAuthorizationService } from '../../auth/ReportPermissions';
+import { AuditAction, AuditResource, ReportAuditLogger } from '../../audit/ReportAuditLogger';
+import { DataSanitizer } from '../../security/DataSanitizer';
 
 const router: Router = Router();
 
@@ -36,13 +50,25 @@ const schedulerService = new SchedulerService(reportingService, exportService);
  * Get dashboard data with key metrics and widgets
  */
 router.get('/dashboard',
+  ...reportSecurityMiddleware.readOnly,
   asyncHandler(async (req: Request, res: Response) => {
-    const userId = req.user?.id;
-    
-    const result = await reportingService.getDashboardData(userId);
-    
+    const user = req.reportUser!;
+
+    // Log dashboard access
+    await ReportAuditLogger.logDashboardView(user, {
+      widgets: req.query.widgets,
+      timeRange: req.query.timeRange
+    });
+
+    const result = await reportingService.getDashboardData(user.id);
+
     if (!result.success) {
       return res.status(500).json(result);
+    }
+
+    // Sanitize dashboard data based on user permissions
+    if (result.data) {
+      result.data = DataSanitizer.sanitizeData([result.data], user)[0];
     }
 
     res.json(result);
@@ -54,6 +80,7 @@ router.get('/dashboard',
  * Get specific widget data
  */
 router.get('/dashboard/widgets/:widgetType',
+  ...reportSecurityMiddleware.readOnly,
   validateRequest({
     params: {
       widgetType: Joi.string().valid('metrics', 'charts', 'status', 'activity').required()
@@ -66,13 +93,13 @@ router.get('/dashboard/widgets/:widgetType',
   asyncHandler(async (req: Request, res: Response) => {
     const { widgetType } = req.params;
     const { timeRange, refresh } = req.query;
-    const userId = req.user?.id;
+    const user = req.reportUser!;
 
     // Route to appropriate widget data method
     let result;
     switch (widgetType) {
       case 'metrics':
-        result = await reportingService.getDashboardData(userId);
+        result = await reportingService.getDashboardData(user.id);
         if (result.success) {
           result.data = {
             resourceCounts: result.data.resourceCounts,
@@ -81,13 +108,13 @@ router.get('/dashboard/widgets/:widgetType',
         }
         break;
       case 'status':
-        result = await reportingService.getDashboardData(userId);
+        result = await reportingService.getDashboardData(user.id);
         if (result.success) {
           result.data = { healthStatus: result.data.healthStatus };
         }
         break;
       case 'activity':
-        result = await reportingService.getDashboardData(userId);
+        result = await reportingService.getDashboardData(user.id);
         if (result.success) {
           result.data = { recentActivity: result.data.recentActivity };
         }
@@ -103,6 +130,11 @@ router.get('/dashboard/widgets/:widgetType',
       return res.status(500).json(result);
     }
 
+    // Sanitize widget data
+    if (result.data) {
+      result.data = DataSanitizer.sanitizeData([result.data], user)[0];
+    }
+
     res.json(result);
   })
 );
@@ -114,20 +146,48 @@ router.get('/dashboard/widgets/:widgetType',
  * Generate a custom report
  */
 router.post('/generate',
+  ...reportSecurityMiddleware.writeAccess,
   validateRequest({ body: ReportValidationSchemas.generateReport }),
   asyncHandler(async (req: Request, res: Response) => {
     const reportQuery: ReportQuery = req.body;
-    const userId = req.user?.id;
+    const user = req.reportUser!;
 
-    const result = await reportingService.executeReport(reportQuery, userId);
-    
+    // Validate report query against user permissions
+    const queryValidation = await ReportAuthorizationService.validateReportQuery(user, reportQuery);
+    if (!queryValidation.valid) {
+      await ReportAuditLogger.logPermissionDenied(
+        user,
+        'generate_report',
+        'report',
+        undefined,
+        { query: reportQuery, errors: queryValidation.errors }
+      );
+      return res.status(403).json({
+        success: false,
+        errors: queryValidation.errors.map(error => ({ code: 'PERMISSION_DENIED', message: error }))
+      });
+    }
+
+    // Log report creation
+    await ReportAuditLogger.logReportCreate(user, 'ad-hoc', {
+      query: reportQuery,
+      resourceTypes: reportQuery.resourceTypes
+    });
+
+    const result = await reportingService.executeReport(reportQuery, user.id);
+
     if (!result.success) {
-      const statusCode = 
+      const statusCode =
         result.errors?.[0]?.code === 'INVALID_QUERY' ? 400 :
         result.errors?.[0]?.code === 'PERMISSION_DENIED' ? 403 :
         result.errors?.[0]?.code === 'TIMEOUT' ? 408 : 500;
-      
+
       return res.status(statusCode).json(result);
+    }
+
+    // Sanitize report data before returning
+    if (result.data?.records) {
+      result.data.records = DataSanitizer.sanitizeData(result.data.records, user);
     }
 
     res.json(result);
@@ -192,6 +252,7 @@ router.post('/aggregate',
  * Export report data in various formats
  */
 router.post('/export',
+  ...reportSecurityMiddleware.exportAccess,
   validateRequest({
     body: {
       data: Joi.array().required(),
@@ -200,21 +261,75 @@ router.post('/export',
         includeCharts: Joi.boolean().default(false),
         includeMetadata: Joi.boolean().default(true),
         compression: Joi.boolean().default(false),
-        password: Joi.string().optional()
+        password: Joi.string().optional(),
+        addWatermark: Joi.boolean().default(true),
+        encryptFile: Joi.boolean().default(false)
       }).optional(),
       metadata: Joi.object().optional()
     }
   }),
   asyncHandler(async (req: Request, res: Response) => {
     const { data, format, options = {}, metadata } = req.body;
+    const user = req.reportUser!;
+
+    // Validate export request against security policies
+    const securityOptions = {
+      addWatermark: options.addWatermark !== false, // Default to true
+      encryptFile: options.encryptFile || false,
+      passwordProtect: !!options.password,
+      password: options.password,
+      expirationHours: 24, // Default 24 hour expiration
+      allowedDownloads: 5    // Default max 5 downloads
+    };
+
+    const validation = DataSanitizer.validateExportRequest(data, user, format, securityOptions);
+    if (!validation.allowed) {
+      await ReportAuditLogger.logPermissionDenied(
+        user,
+        'export_report',
+        'export',
+        format,
+        { violations: validation.violations, requirements: validation.requirements }
+      );
+      return res.status(403).json({
+        success: false,
+        errors: validation.violations.map(violation => ({ code: 'EXPORT_POLICY_VIOLATION', message: violation })),
+        requirements: validation.requirements
+      });
+    }
+
+    // Sanitize data before export
+    const sanitizedData = DataSanitizer.sanitizeData(data, user);
+
+    // Apply export security controls
+    const { securedData, metadata: securityMetadata } = DataSanitizer.applyExportSecurity(
+      sanitizedData,
+      user,
+      format,
+      securityOptions
+    );
+
+    // Log export action
+    await ReportAuditLogger.logReportExport(user, 'export-' + Date.now(), format, {
+      recordCount: data.length,
+      securityOptions,
+      dataClassification: DataSanitizer.classifyData(data)
+    });
 
     const exportOptions: ReportExportOptions = {
       format: format as ExportFormat,
-      ...options
+      ...options,
+      watermark: securityOptions.addWatermark,
+      encryption: securityOptions.encryptFile
     };
 
-    const result = await exportService.exportData(data, format, exportOptions, metadata);
-    
+    const result = await exportService.exportData(securedData, format, exportOptions, {
+      ...metadata,
+      security: securityMetadata,
+      exportedBy: user.username,
+      exportedAt: new Date().toISOString()
+    });
+
     if (!result.success) {
       return res.status(500).json(result);
     }
@@ -225,7 +340,13 @@ router.post('/export',
         downloadUrl: `/api/reports/download/${result.data!.fileName}`,
         fileName: result.data!.fileName,
         size: result.data!.size,
-        format
+        format,
+        security: {
+          watermarked: securityOptions.addWatermark,
+          encrypted: securityOptions.encryptFile,
+          expiresAt: securityMetadata.expiresAt,
+          maxDownloads: securityOptions.allowedDownloads
+        }
       }
     });
   })
@@ -233,20 +354,41 @@ router.post('/export',
 
 /**
  * GET /api/reports/download/:fileName
- * Download exported report file
+ * Download exported report file with security controls
  */
 router.get('/download/:fileName',
+  ...reportSecurityMiddleware.basic,
+  validateRequest({
+    params: {
+      fileName: Joi.string().pattern(/^[a-zA-Z0-9_.-]+$/).required()
+    }
+  }),
   asyncHandler(async (req: Request, res: Response) => {
     const { fileName } = req.params;
-    
+    const user = req.reportUser;
+
+    // Log download attempt
+    await ReportAuditLogger.logExportDownload(user, fileName, {
+      userAgent: req.get('User-Agent'),
+      referrer: req.get('Referrer')
+    });
+
+    // Get file metadata and validate access
     const fileStream = exportService.getFileStream(fileName);
-    
+
     if (!fileStream) {
       return res.status(404).json({
         success: false,
-        errors: [{ code: 'FILE_NOT_FOUND', message: 'Export file not found' }]
+        errors: [{ code: 'FILE_NOT_FOUND', message: 'Export file not found or expired' }]
       });
     }
+
+    // TODO: Implement file access validation based on security metadata
+    // This would check:
+    // - File expiration
+    // - Download count limits
+    // - IP restrictions
+    // - User permissions
 
     // Set appropriate headers
     const fileExt = fileName.split('.').pop()?.toLowerCase();
@@ -258,9 +400,15 @@ router.get('/download/:fileName',
       'html': 'text/html'
     };
 
+    // Security headers for file download
     res.setHeader('Content-Type', contentTypes[fileExt || ''] || 'application/octet-stream');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-    
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
     fileStream.pipe(res);
   })
 );

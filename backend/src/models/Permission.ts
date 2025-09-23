@@ -80,8 +80,10 @@ export class Permission extends Model<PermissionAttributes, PermissionCreationAt
    */
   public toJSON(): any {
     const values = super.toJSON();
-    values.fullPermission = this.fullPermission;
-    return values;
+    return {
+      ...values,
+      fullPermission: this.fullPermission
+    };
   }
 }
 
