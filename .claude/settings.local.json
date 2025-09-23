@@ -34,7 +34,17 @@
       "Bash(NODE_ENV=production npx sequelize-cli db:migrate --to 014-create-workflow-tables.js)",
       "Bash(pkill:*)",
       "Bash(bash:*)",
-      "Bash(NODE_ENV=production DB_HOST=172.16.30.62 DB_PORT=44060 DB_NAME=mydatabase DB_USER=root DB_PASSWORD='Gq34Ko90#110' npx sequelize-cli db:migrate)"
+      "Bash(NODE_ENV=production DB_HOST=172.16.30.62 DB_PORT=44060 DB_NAME=mydatabase DB_USER=root DB_PASSWORD='Gq34Ko90#110' npx sequelize-cli db:migrate)",
+      "Bash(git checkout:*)",
+      "Read(//Users/sunsun/epic-cloud-network-cmdb-reports/**)",
+      "WebFetch(domain:api.claude.ai)",
+      "Bash(gh issue view:*)",
+      "Bash(git worktree:*)",
+      "Bash(npm test:*)",
+      "Bash(RUN_DB_TESTS=true npm test -- --testPathPattern=\"ReportCache.test.ts\" --verbose)",
+      "Bash(RUN_DB_TESTS=true npm test -- --testPathPattern=\"ReportCache.test.ts\" --testNamePattern=\"Basic Cache Operations\" --verbose)",
+      "Bash(RUN_DB_TESTS=true npm test -- --testPathPattern=\"ReportCache.test.ts\" --testNamePattern=\"should handle null and undefined data\" --verbose)",
+      "Bash(gh issue edit:*)"
     ],
     "deny": [],
     "ask": []
