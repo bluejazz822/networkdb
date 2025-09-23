@@ -11,8 +11,8 @@ import { ReportCache, CacheConfig, CacheStats } from '../../../database/cache/Re
 // Mock Redis for testing
 jest.mock('redis', () => ({
   createClient: jest.fn(() => ({
-    connect: jest.fn().mockResolvedValue(undefined),
-    quit: jest.fn().mockResolvedValue(undefined),
+    connect: jest.fn().mockImplementation(() => Promise.resolve()),
+    quit: jest.fn().mockImplementation(() => Promise.resolve()),
     get: jest.fn(),
     setEx: jest.fn(),
     del: jest.fn(),
@@ -333,19 +333,19 @@ describe('ReportCache', () => {
 
       cache.registerInvalidationRule('high_priority', {
         pattern: 'test:high:*',
-        triggers: ['test_trigger'],
+        triggers: ['manual'],
         priority: 100,
         cascade: false,
       });
 
       cache.registerInvalidationRule('low_priority', {
         pattern: 'test:low:*',
-        triggers: ['test_trigger'],
+        triggers: ['manual'],
         priority: 1,
         cascade: false,
       });
 
-      await cache.triggerInvalidation('test_trigger');
+      await cache.triggerInvalidation('manual');
 
       expect(await cache.get('test:high:priority')).toBeNull();
       expect(await cache.get('test:low:priority')).toBeNull();

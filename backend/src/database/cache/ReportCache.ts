@@ -135,7 +135,7 @@ export class ReportCache extends EventEmitter {
 
   // Invalidation rules
   private invalidationRules = new Map<string, InvalidationRule>();
-  private scheduledInvalidations = new Map<string, NodeJS.Timer>();
+  private scheduledInvalidations = new Map<string, NodeJS.Timeout>();
 
   // Cache warming
   private warmingConfig: CacheWarming = {
@@ -146,9 +146,9 @@ export class ReportCache extends EventEmitter {
   };
 
   // Monitoring intervals
-  private statsUpdateInterval: NodeJS.Timer | null = null;
-  private memoryCleanupInterval: NodeJS.Timer | null = null;
-  private warmingInterval: NodeJS.Timer | null = null;
+  private statsUpdateInterval: NodeJS.Timeout | null = null;
+  private memoryCleanupInterval: NodeJS.Timeout | null = null;
+  private warmingInterval: NodeJS.Timeout | null = null;
 
   private constructor(config?: Partial<CacheConfig>) {
     super();
@@ -816,16 +816,34 @@ export class ReportCache extends EventEmitter {
   private compress(data: any): string {
     // Simple JSON stringification for now
     // In production, you might want to use zlib or similar
-    return JSON.stringify(data);
+    try {
+      return JSON.stringify(data);
+    } catch (error) {
+      // Fallback for non-serializable data
+      return String(data);
+    }
   }
 
   private decompress(data: string): any {
     // Simple JSON parsing for now
-    return JSON.parse(data);
+    try {
+      return JSON.parse(data);
+    } catch (error) {
+      // Return as string if parsing fails
+      return data;
+    }
   }
 
   private calculateSize(data: any): number {
-    return Buffer.byteLength(JSON.stringify(data), 'utf8');
+    if (data === null || data === undefined) {
+      return Buffer.byteLength('null', 'utf8');
+    }
+    try {
+      return Buffer.byteLength(JSON.stringify(data), 'utf8');
+    } catch (error) {
+      // Fallback for non-serializable data
+      return Buffer.byteLength(String(data), 'utf8');
+    }
   }
 
   private updateAccessTime(key: string): void {
