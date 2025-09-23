@@ -659,6 +659,14 @@ export class ReportCache extends EventEmitter {
     const processedData = compressed ? this.compress(data) : data;
     const size = this.calculateSize(processedData);
 
+    // Create a safe hash for the data
+    let queryHash: string;
+    try {
+      queryHash = crypto.createHash('md5').update(JSON.stringify(data || null)).digest('hex');
+    } catch (error) {
+      queryHash = crypto.createHash('md5').update(String(data || 'null')).digest('hex');
+    }
+
     const entry: CacheEntry = {
       data: processedData,
       timestamp: Date.now(),
@@ -667,7 +675,7 @@ export class ReportCache extends EventEmitter {
       accessCount: 1,
       lastAccessed: Date.now(),
       size,
-      queryHash: crypto.createHash('md5').update(JSON.stringify(data)).digest('hex'),
+      queryHash,
       metadata,
     };
 
@@ -715,6 +723,14 @@ export class ReportCache extends EventEmitter {
       const compressed = forceCompress ?? this.shouldCompress(data);
       const processedData = compressed ? this.compress(data) : data;
 
+      // Create a safe hash for the data
+      let queryHash: string;
+      try {
+        queryHash = crypto.createHash('md5').update(JSON.stringify(data || null)).digest('hex');
+      } catch (error) {
+        queryHash = crypto.createHash('md5').update(String(data || 'null')).digest('hex');
+      }
+
       const entry: CacheEntry = {
         data: processedData,
         timestamp: Date.now(),
@@ -723,7 +739,7 @@ export class ReportCache extends EventEmitter {
         accessCount: 1,
         lastAccessed: Date.now(),
         size: this.calculateSize(processedData),
-        queryHash: crypto.createHash('md5').update(JSON.stringify(data)).digest('hex'),
+        queryHash,
         metadata,
       };
 
