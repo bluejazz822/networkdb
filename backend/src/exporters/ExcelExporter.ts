@@ -3,7 +3,7 @@
  * Handles Excel export using ExcelJS with advanced formatting and styling capabilities
  */
 
-import ExcelJS from 'exceljs';
+import * as ExcelJS from 'exceljs';
 import { ExportOptions, ExportFormat, ExportError } from '../types/export';
 
 export interface ExcelExportOptions extends ExportOptions {

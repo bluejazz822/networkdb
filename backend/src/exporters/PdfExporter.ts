@@ -5,7 +5,7 @@
 
 import puppeteer, { Browser, Page, PDFOptions } from 'puppeteer';
 import { promises as fs } from 'fs';
-import path from 'path';
+import * as path from 'path';
 import { ExportOptions, ExportFormat, ExportError } from '../types/export';
 
 export interface PdfExportOptions extends ExportOptions {
