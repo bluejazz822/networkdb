@@ -62,10 +62,40 @@ export function createEmailTransporter(): nodemailer.Transporter | null {
       return null;
     }
 
-    // Temporarily disable email transporter to avoid TypeScript compilation issues
-    // TODO: Fix nodemailer TypeScript configuration in future update
-    console.warn('Email transporter temporarily disabled due to TypeScript compilation issues');
-    return null;
+    // Create SMTP configuration object for nodemailer
+    const smtpConfig = {
+      host: config.smtp.host,
+      port: config.smtp.port,
+      secure: config.smtp.secure,
+      auth: {
+        user: config.smtp.auth.user,
+        pass: config.smtp.auth.pass
+      },
+      // Connection timeout and retry settings
+      connectionTimeout: 10000,
+      greetingTimeout: 5000,
+      socketTimeout: 10000,
+      // Disable pool to avoid connection issues
+      pool: false,
+      // Custom logger for debugging in development
+      logger: process.env.NODE_ENV === 'development',
+      debug: process.env.NODE_ENV === 'development'
+    };
+
+    const transporter = nodemailer.createTransporter(smtpConfig);
+
+    // Test connection on startup only if credentials are provided
+    if (config.smtp.auth.user && config.smtp.auth.pass) {
+      transporter.verify((error: any, success: any) => {
+        if (error) {
+          console.error('SMTP configuration error:', error.message);
+        } else {
+          console.log('✅ SMTP server connection verified');
+        }
+      });
+    }
+
+    return transporter;
 
     // // Create SMTP URL for nodemailer (avoids TypeScript configuration issues)
     // const smtpUrl = `smtp${config.smtp.secure ? 's' : ''}://${encodeURIComponent(config.smtp.auth.user)}:${encodeURIComponent(config.smtp.auth.pass)}@${config.smtp.host}:${config.smtp.port}`;
