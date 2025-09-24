@@ -51,6 +51,7 @@ interface WorkflowStatusCardProps {
   onEdit?: (workflowId: string) => void
   onToggleStatus?: (workflowId: string, newStatus: 'active' | 'inactive') => void
   onSync?: (workflowId: string) => void
+  onViewHistory?: (workflowId: string, workflowName: string) => void
 }
 
 export default function WorkflowStatusCard({
@@ -60,7 +61,8 @@ export default function WorkflowStatusCard({
   onView,
   onEdit,
   onToggleStatus,
-  onSync
+  onSync,
+  onViewHistory
 }: WorkflowStatusCardProps) {
   const getStatusConfig = (status: WorkflowStatus) => {
     switch (status) {
@@ -241,6 +243,12 @@ export default function WorkflowStatusCard({
       label: 'View Details',
       icon: <EyeOutlined />,
       onClick: () => onView?.(workflow.id)
+    },
+    {
+      key: 'history',
+      label: 'View History',
+      icon: <ClockCircleOutlined />,
+      onClick: () => onViewHistory?.(workflow.id, workflow.name)
     },
     {
       key: 'edit',

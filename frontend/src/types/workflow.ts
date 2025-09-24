@@ -1,11 +1,73 @@
 // Workflow status types
-export type WorkflowStatus = 'active' | 'inactive' | 'error' | 'unknown' | 'running' | 'paused'
+export type WorkflowStatus =
+  | 'active'
+  | 'inactive'
+  | 'error'
+  | 'unknown'
+  | 'running'
+  | 'paused'
+  | 'queued'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+  | 'scheduled'
+  | 'pending'
 
 // Execution status types
 export type ExecutionStatus = 'success' | 'error' | 'running' | 'waiting' | 'crashed' | 'aborted' | 'cancelled'
 
 // Health status types
 export type HealthStatus = 'healthy' | 'warning' | 'critical' | 'unknown'
+
+// Performance trend types
+export type PerformanceTrendType = 'improving' | 'stable' | 'degrading' | 'unknown'
+
+// Workflow progress interface for real-time tracking
+export interface WorkflowProgress {
+  executionId: string
+  workflowId: string
+  currentStep: string
+  totalSteps: number
+  completedSteps: number
+  percentComplete: number
+  estimatedTimeRemaining?: number
+  startedAt: string
+  logs?: string[]
+  status: ExecutionStatus
+}
+
+// Workflow health metrics interface
+export interface WorkflowHealthMetrics {
+  workflowId: string
+  averageExecutionTime: number
+  successRateLastWeek: number
+  failurePattern?: string
+  performanceTrend: PerformanceTrendType
+  resourceUsage?: {
+    cpu: number
+    memory: number
+    network: number
+  }
+  healthScore: number // 0-100
+  lastHealthCheck: string
+}
+
+// Enhanced workflow data interface that extends the basic workflow
+export interface EnhancedWorkflowData {
+  id: string
+  name: string
+  status: WorkflowStatus
+  lastExecution: string | null
+  executionCount: number
+  successRate: number
+  description?: string
+  nextExecution?: string | null
+  progress?: WorkflowProgress
+  healthMetrics?: WorkflowHealthMetrics
+  tags?: string[]
+  isStarred?: boolean
+  averageExecutionTime?: number
+}
 
 // Workflow interface matching n8n API structure
 export interface Workflow {

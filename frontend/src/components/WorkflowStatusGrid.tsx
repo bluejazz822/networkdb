@@ -120,13 +120,28 @@ export default function WorkflowStatusGrid({
     fetchWorkflows()
   }, [fetchWorkflows])
 
-  // Auto refresh
+  // Enhanced auto refresh with smart intervals
   useEffect(() => {
     if (!autoRefreshEnabled) return
 
-    const interval = setInterval(fetchWorkflows, refreshInterval)
+    const interval = setInterval(() => {
+      fetchWorkflows().catch(error => {
+        console.error('Auto-refresh failed:', error)
+        smartRefresh.incrementErrorCount()
+      })
+    }, smartRefresh.refreshInterval)
+
     return () => clearInterval(interval)
-  }, [autoRefreshEnabled, refreshInterval, fetchWorkflows])
+  }, [autoRefreshEnabled, smartRefresh.refreshInterval, fetchWorkflows, smartRefresh])
+
+  // Start progress tracking for running workflows
+  useEffect(() => {
+    workflows.forEach(workflow => {
+      if (['running', 'queued'].includes(workflow.status)) {
+        progressTracker.startPolling(workflow.id)
+      }
+    })
+  }, [workflows, progressTracker])
 
   // Filter workflows
   const filteredWorkflows = useMemo(() => {
@@ -205,7 +220,19 @@ export default function WorkflowStatusGrid({
     fetchWorkflows()
     setManualSyncModalVisible(false)
     setPreselectedWorkflowIds([])
-  }, [fetchWorkflows])
+    smartRefresh.resetErrorCount()
+  }, [fetchWorkflows, smartRefresh])
+
+  // Handle workflow history modal
+  const handleOpenHistoryModal = useCallback((workflowId: string, workflowName: string) => {
+    setSelectedWorkflowForHistory({ id: workflowId, name: workflowName })
+    setHistoryModalVisible(true)
+  }, [])
+
+  const handleCloseHistoryModal = useCallback(() => {
+    setHistoryModalVisible(false)
+    setSelectedWorkflowForHistory(null)
+  }, [])
 
   const statusOptions = [
     { label: 'All', value: '' },
@@ -243,13 +270,17 @@ export default function WorkflowStatusGrid({
         {filteredWorkflows.map(workflow => (
           <Col key={workflow.id} xs={24} sm={12} lg={8} xl={6}>
             <WorkflowStatusCard
-              workflow={workflow}
+              workflow={{
+                ...workflow,
+                progress: progressTracker.progressData.get(workflow.id)
+              }}
               loading={loading}
               onTrigger={handleTriggerWorkflow}
               onView={handleViewWorkflow}
               onEdit={handleEditWorkflow}
               onToggleStatus={handleToggleWorkflowStatus}
               onSync={(workflowId) => handleOpenManualSyncModal([workflowId])}
+              onViewHistory={handleOpenHistoryModal}
             />
           </Col>
         ))}
@@ -275,16 +306,32 @@ export default function WorkflowStatusGrid({
       <div style={{ marginBottom: 16 }}>
         <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
           <Col>
-            <Title level={3} style={{ margin: 0 }}>
-              <SyncOutlined /> {title} ({filteredWorkflows.length} of {workflows.length})
-            </Title>
+            <Space>
+              <Title level={3} style={{ margin: 0 }}>
+                <SyncOutlined /> {title} ({filteredWorkflows.length} of {workflows.length})
+              </Title>
+              {smartRefresh.hasRunningWorkflows && (
+                <Badge status="processing" text="Live Updates" />
+              )}
+              {smartRefresh.hasErrorWorkflows && (
+                <Badge status="error" text="Issues Detected" />
+              )}
+              {progressTracker.isAnyPolling && (
+                <Badge status="processing" text={`${progressTracker.pollingWorkflows.length} Running`} />
+              )}
+            </Space>
           </Col>
           <Col>
             <Space>
               <Text type="secondary">
-                {lastUpdated && `Last updated: ${lastUpdated.toLocaleTimeString()}`}
+                {lastUpdated && `Updated: ${lastUpdated.toLocaleTimeString()}`}
               </Text>
-              <Tooltip title={`Auto-refresh every ${refreshInterval / 1000}s`}>
+              {smartRefresh.errorCount > 0 && (
+                <Text type="warning" style={{ fontSize: '11px' }}>
+                  ({smartRefresh.errorCount} errors)
+                </Text>
+              )}
+              <Tooltip title={`Smart refresh: ${smartRefresh.refreshInterval / 1000}s intervals`}>
                 <Switch
                   checked={autoRefreshEnabled}
                   onChange={setAutoRefreshEnabled}
@@ -334,6 +381,19 @@ export default function WorkflowStatusGrid({
               >
                 Refresh
               </Button>
+              {smartRefresh.errorCount > 0 && (
+                <Tooltip title="Force refresh and reset error count">
+                  <Button
+                    icon={<ThunderboltOutlined />}
+                    onClick={smartRefresh.forceRefresh}
+                    type="primary"
+                    ghost
+                    danger
+                  >
+                    Force Reset
+                  </Button>
+                </Tooltip>
+              )}
             </Space>
           </Col>
         </Row>
@@ -382,6 +442,14 @@ export default function WorkflowStatusGrid({
         onCancel={handleCloseManualSyncModal}
         onSuccess={handleManualSyncSuccess}
         preselectedWorkflows={preselectedWorkflowIds}
+      />
+
+      {/* Workflow History Modal */}
+      <WorkflowHistoryModal
+        visible={historyModalVisible}
+        workflowId={selectedWorkflowForHistory?.id || null}
+        workflowName={selectedWorkflowForHistory?.name}
+        onCancel={handleCloseHistoryModal}
       />
     </Card>
   )
