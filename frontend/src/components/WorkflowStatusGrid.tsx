@@ -13,7 +13,8 @@ import {
   message,
   Modal,
   Empty,
-  Spin
+  Spin,
+  Badge
 } from 'antd'
 import {
   ReloadOutlined,
@@ -22,10 +23,15 @@ import {
   SyncOutlined,
   FilterOutlined,
   AppstoreOutlined,
-  UnorderedListOutlined
+  UnorderedListOutlined,
+  HistoryOutlined,
+  ThunderboltOutlined
 } from '@ant-design/icons'
 import WorkflowStatusCard, { WorkflowData } from './WorkflowStatusCard'
 import DynamicTable from './DynamicTable'
+import ManualSyncModal from './ManualSyncModal'
+import WorkflowHistoryModal from './WorkflowHistoryModal'
+import { useSmartWorkflowRefresh, useMultipleWorkflowProgress } from '@/hooks/useWorkflowProgress'
 import { apiClient } from '@/utils/api'
 
 const { Title, Text } = Typography
@@ -59,7 +65,14 @@ export default function WorkflowStatusGrid({
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(autoRefresh)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [manualSyncModalVisible, setManualSyncModalVisible] = useState(false)
+  const [preselectedWorkflowIds, setPreselectedWorkflowIds] = useState<string[]>([])
+  const [historyModalVisible, setHistoryModalVisible] = useState(false)
+  const [selectedWorkflowForHistory, setSelectedWorkflowForHistory] = useState<{ id: string; name: string } | null>(null)
 
+  // Enhanced refresh and progress tracking
+  const smartRefresh = useSmartWorkflowRefresh(workflows)
+  const progressTracker = useMultipleWorkflowProgress(workflows.map(w => w.id))
 
   // Fetch workflows data
   const fetchWorkflows = useCallback(async () => {
@@ -176,11 +189,36 @@ export default function WorkflowStatusGrid({
     }
   }, [fetchWorkflows])
 
+  // Handle manual sync modal
+  const handleOpenManualSyncModal = useCallback((preselectedIds: string[] = []) => {
+    setPreselectedWorkflowIds(preselectedIds)
+    setManualSyncModalVisible(true)
+  }, [])
+
+  const handleCloseManualSyncModal = useCallback(() => {
+    setManualSyncModalVisible(false)
+    setPreselectedWorkflowIds([])
+  }, [])
+
+  const handleManualSyncSuccess = useCallback(() => {
+    // Refresh data after successful sync
+    fetchWorkflows()
+    setManualSyncModalVisible(false)
+    setPreselectedWorkflowIds([])
+  }, [fetchWorkflows])
+
   const statusOptions = [
     { label: 'All', value: '' },
+    { label: 'Running', value: 'running' },
     { label: 'Active', value: 'active' },
+    { label: 'Queued', value: 'queued' },
+    { label: 'Completed', value: 'completed' },
+    { label: 'Scheduled', value: 'scheduled' },
+    { label: 'Paused', value: 'paused' },
     { label: 'Inactive', value: 'inactive' },
+    { label: 'Failed', value: 'failed' },
     { label: 'Error', value: 'error' },
+    { label: 'Cancelled', value: 'cancelled' },
     { label: 'Pending', value: 'pending' }
   ]
 
@@ -211,6 +249,7 @@ export default function WorkflowStatusGrid({
               onView={handleViewWorkflow}
               onEdit={handleEditWorkflow}
               onToggleStatus={handleToggleWorkflowStatus}
+              onSync={(workflowId) => handleOpenManualSyncModal([workflowId])}
             />
           </Col>
         ))}
@@ -271,6 +310,14 @@ export default function WorkflowStatusGrid({
                   </Button>
                 </Space.Compact>
               </Tooltip>
+              <Button
+                icon={<SyncOutlined />}
+                onClick={() => handleOpenManualSyncModal()}
+                type="primary"
+                ghost
+              >
+                Manual Sync
+              </Button>
               {onCreateWorkflow && (
                 <Button
                   type="primary"
@@ -328,6 +375,14 @@ export default function WorkflowStatusGrid({
       ) : (
         viewMode === 'grid' ? renderGridView() : renderTableView()
       )}
+
+      {/* Manual Sync Modal */}
+      <ManualSyncModal
+        visible={manualSyncModalVisible}
+        onCancel={handleCloseManualSyncModal}
+        onSuccess={handleManualSyncSuccess}
+        preselectedWorkflows={preselectedWorkflowIds}
+      />
     </Card>
   )
 }
