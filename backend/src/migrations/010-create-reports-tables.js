@@ -1,11 +1,13 @@
 'use strict';
 
+const { createMigrationHelper } = require('../utils/migration-helper');
+
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
-    console.log('Creating reports system tables...');
+    const helper = createMigrationHelper(queryInterface);
 
-    // Create reports table for report metadata and configuration
+    // Create reports table
     await queryInterface.createTable('reports', {
       id: {
         type: Sequelize.INTEGER,
@@ -15,9 +17,9 @@ module.exports = {
       },
       report_id: {
         type: Sequelize.STRING(255),
-        unique: true,
         allowNull: false,
-        comment: 'Unique identifier for the report'
+        unique: true,
+        comment: 'Unique external identifier for the report'
       },
       name: {
         type: Sequelize.STRING(255),
@@ -34,15 +36,16 @@ module.exports = {
           'vpc_inventory',
           'subnet_utilization',
           'security_group_analysis',
-          'cost_optimization',
-          'compliance_audit',
-          'network_topology',
+          'cost_analysis',
+          'compliance_report',
+          'connectivity_matrix',
           'resource_usage',
           'performance_metrics',
-          'custom'
+          'audit_trail',
+          'custom_query'
         ),
         allowNull: false,
-        comment: 'Type/category of the report'
+        comment: 'Type of report being generated'
       },
       category: {
         type: Sequelize.ENUM(
@@ -51,96 +54,91 @@ module.exports = {
           'compliance',
           'cost',
           'performance',
-          'operational'
+          'operational',
+          'audit'
         ),
         allowNull: false,
-        comment: 'Report category for grouping and filtering'
+        comment: 'Report category for organization'
       },
       provider: {
-        type: Sequelize.ENUM('aws', 'azure', 'gcp', 'ali', 'oci', 'huawei', 'others', 'multi_cloud'),
+        type: Sequelize.ENUM(
+          'aws',
+          'azure',
+          'gcp',
+          'oci',
+          'multi_cloud',
+          'all'
+        ),
         allowNull: false,
-        defaultValue: 'multi_cloud',
+        defaultValue: 'all',
         comment: 'Cloud provider scope for the report'
       },
       query_config: {
         type: Sequelize.JSON,
         allowNull: false,
-        comment: 'JSON configuration for report queries and parameters'
-      },
-      output_format: {
-        type: Sequelize.ENUM('json', 'csv', 'excel', 'pdf', 'html'),
-        allowNull: false,
-        defaultValue: 'json',
-        comment: 'Default output format for the report'
+        comment: 'SQL query configuration and parameters'
       },
       scheduling_config: {
         type: Sequelize.JSON,
         allowNull: true,
-        comment: 'JSON configuration for report scheduling (cron, frequency, etc.)'
+        comment: 'Automated scheduling configuration'
       },
       notification_config: {
         type: Sequelize.JSON,
         allowNull: true,
-        comment: 'JSON configuration for notifications (email, slack, etc.)'
+        comment: 'Notification settings for report completion'
       },
       parameters_schema: {
         type: Sequelize.JSON,
         allowNull: true,
-        comment: 'JSON schema defining available parameters for the report'
+        comment: 'JSON schema for report parameters validation'
       },
       is_active: {
         type: Sequelize.BOOLEAN,
-        defaultValue: true,
         allowNull: false,
+        defaultValue: true,
         comment: 'Whether the report is active and available for execution'
       },
       is_public: {
         type: Sequelize.BOOLEAN,
-        defaultValue: false,
         allowNull: false,
+        defaultValue: false,
         comment: 'Whether the report is visible to all users'
       },
       created_by: {
-        type: Sequelize.INTEGER,
-        allowNull: true,
-        references: {
-          model: 'users',
-          key: 'id'
-        },
-        onDelete: 'SET NULL',
-        comment: 'User who created the report'
+        type: Sequelize.UUID,
+        allowNull: false,
+        comment: 'User who created this report'
       },
       last_modified_by: {
-        type: Sequelize.INTEGER,
-        allowNull: true,
-        references: {
-          model: 'users',
-          key: 'id'
-        },
-        onDelete: 'SET NULL',
-        comment: 'User who last modified the report'
+        type: Sequelize.UUID,
+        allowNull: false,
+        comment: 'User who last modified this report'
       },
       version: {
         type: Sequelize.INTEGER,
-        defaultValue: 1,
         allowNull: false,
-        comment: 'Version number for report configuration tracking'
+        defaultValue: 1,
+        comment: 'Version number for configuration changes'
       },
       created_at: {
         type: Sequelize.DATE,
         allowNull: false,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
-        comment: 'Timestamp when the report was created'
+        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
       },
       updated_at: {
         type: Sequelize.DATE,
         allowNull: false,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'),
-        comment: 'Timestamp when the report was last updated'
+        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP')
       }
+    }, {
+      charset: 'utf8mb4',
+      collate: 'utf8mb4_unicode_ci',
+      engine: 'InnoDB',
+      comment: 'Reports metadata, configuration, and scheduling information'
     });
 
-    // Create report_executions table for execution history and status tracking
+    // Create report_executions table
     await queryInterface.createTable('report_executions', {
       id: {
         type: Sequelize.INTEGER,
@@ -150,47 +148,47 @@ module.exports = {
       },
       execution_id: {
         type: Sequelize.STRING(255),
-        unique: true,
         allowNull: false,
-        comment: 'Unique identifier for the execution instance'
+        unique: true,
+        comment: 'Unique external identifier for the execution'
       },
       report_id: {
         type: Sequelize.STRING(255),
         allowNull: false,
-        references: {
-          model: 'reports',
-          key: 'report_id'
-        },
-        onDelete: 'CASCADE',
-        comment: 'Reference to the report being executed'
+        comment: 'Foreign key to reports table'
       },
       status: {
-        type: Sequelize.ENUM('pending', 'running', 'completed', 'failed', 'cancelled', 'timeout'),
+        type: Sequelize.ENUM(
+          'pending',
+          'running',
+          'completed',
+          'failed',
+          'cancelled',
+          'timeout'
+        ),
         allowNull: false,
         defaultValue: 'pending',
         comment: 'Current status of the report execution'
       },
       trigger_type: {
-        type: Sequelize.ENUM('manual', 'scheduled', 'api', 'webhook'),
+        type: Sequelize.ENUM(
+          'manual',
+          'scheduled',
+          'api',
+          'webhook'
+        ),
         allowNull: false,
-        defaultValue: 'manual',
         comment: 'How the report execution was triggered'
       },
       started_by: {
-        type: Sequelize.INTEGER,
+        type: Sequelize.UUID,
         allowNull: true,
-        references: {
-          model: 'users',
-          key: 'id'
-        },
-        onDelete: 'SET NULL',
-        comment: 'User who initiated the execution (null for scheduled)'
+        comment: 'User who started this execution (null for automated)'
       },
       start_time: {
         type: Sequelize.DATE,
-        allowNull: false,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
-        comment: 'When the execution started'
+        allowNull: true,
+        comment: 'When the execution actually started'
       },
       end_time: {
         type: Sequelize.DATE,
@@ -202,6 +200,16 @@ module.exports = {
         allowNull: true,
         comment: 'Execution duration in milliseconds'
       },
+      records_processed: {
+        type: Sequelize.BIGINT,
+        allowNull: true,
+        comment: 'Number of records processed during execution'
+      },
+      output_size_bytes: {
+        type: Sequelize.BIGINT,
+        allowNull: true,
+        comment: 'Size of the generated report output in bytes'
+      },
       execution_parameters: {
         type: Sequelize.JSON,
         allowNull: true,
@@ -210,38 +218,17 @@ module.exports = {
       result_summary: {
         type: Sequelize.JSON,
         allowNull: true,
-        comment: 'Summary of execution results (record counts, key metrics, etc.)'
-      },
-      output_location: {
-        type: Sequelize.STRING(500),
-        allowNull: true,
-        comment: 'Storage location of the generated report output'
-      },
-      output_size_bytes: {
-        type: Sequelize.BIGINT,
-        allowNull: true,
-        comment: 'Size of the generated output in bytes'
-      },
-      records_processed: {
-        type: Sequelize.INTEGER,
-        allowNull: true,
-        defaultValue: 0,
-        comment: 'Number of records processed during execution'
-      },
-      error_message: {
-        type: Sequelize.TEXT,
-        allowNull: true,
-        comment: 'Error message if execution failed'
+        comment: 'Summary of execution results and statistics'
       },
       error_details: {
         type: Sequelize.JSON,
         allowNull: true,
-        comment: 'Detailed error information including stack traces'
+        comment: 'Error information if execution failed'
       },
-      execution_metadata: {
-        type: Sequelize.JSON,
+      output_location: {
+        type: Sequelize.STRING(500),
         allowNull: true,
-        comment: 'Additional metadata about the execution environment'
+        comment: 'File path or URL where report output is stored'
       },
       retention_until: {
         type: Sequelize.DATE,
@@ -251,125 +238,199 @@ module.exports = {
       created_at: {
         type: Sequelize.DATE,
         allowNull: false,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
-        comment: 'Timestamp when the execution record was created'
+        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
       }
+    }, {
+      charset: 'utf8mb4',
+      collate: 'utf8mb4_unicode_ci',
+      engine: 'InnoDB',
+      comment: 'Report execution history and status tracking'
     });
 
-    // Create comprehensive indexes for query performance optimization
-    console.log('Creating indexes for reports table...');
-
-    // Primary access patterns for reports
-    await queryInterface.addIndex('reports', ['report_id'], {
-      unique: true,
-      name: 'idx_reports_report_id'
+    // Add foreign key constraints
+    await queryInterface.addConstraint('reports', {
+      fields: ['created_by'],
+      type: 'foreign key',
+      name: 'fk_reports_created_by',
+      references: {
+        table: 'users',
+        field: 'id'
+      },
+      onUpdate: 'CASCADE',
+      onDelete: 'SET NULL'
     });
-    await queryInterface.addIndex('reports', ['report_type'], {
+
+    await queryInterface.addConstraint('reports', {
+      fields: ['last_modified_by'],
+      type: 'foreign key',
+      name: 'fk_reports_last_modified_by',
+      references: {
+        table: 'users',
+        field: 'id'
+      },
+      onUpdate: 'CASCADE',
+      onDelete: 'SET NULL'
+    });
+
+    await queryInterface.addConstraint('report_executions', {
+      fields: ['report_id'],
+      type: 'foreign key',
+      name: 'fk_report_executions_report_id',
+      references: {
+        table: 'reports',
+        field: 'report_id'
+      },
+      onUpdate: 'CASCADE',
+      onDelete: 'CASCADE'
+    });
+
+    await queryInterface.addConstraint('report_executions', {
+      fields: ['started_by'],
+      type: 'foreign key',
+      name: 'fk_report_executions_started_by',
+      references: {
+        table: 'users',
+        field: 'id'
+      },
+      onUpdate: 'CASCADE',
+      onDelete: 'SET NULL'
+    });
+
+    // Create comprehensive indexes for reports table
+    await queryInterface.addIndex('reports', {
+      fields: ['report_id'],
+      name: 'idx_reports_report_id',
+      unique: true
+    });
+
+    await queryInterface.addIndex('reports', {
+      fields: ['report_type'],
       name: 'idx_reports_type'
     });
-    await queryInterface.addIndex('reports', ['category'], {
+
+    await queryInterface.addIndex('reports', {
+      fields: ['category'],
       name: 'idx_reports_category'
     });
-    await queryInterface.addIndex('reports', ['provider'], {
+
+    await queryInterface.addIndex('reports', {
+      fields: ['provider'],
       name: 'idx_reports_provider'
     });
-    await queryInterface.addIndex('reports', ['is_active'], {
-      name: 'idx_reports_active'
+
+    await queryInterface.addIndex('reports', {
+      fields: ['is_active'],
+      name: 'idx_reports_is_active'
     });
-    await queryInterface.addIndex('reports', ['is_public'], {
-      name: 'idx_reports_public'
+
+    await queryInterface.addIndex('reports', {
+      fields: ['is_public'],
+      name: 'idx_reports_is_public'
     });
-    await queryInterface.addIndex('reports', ['created_by'], {
+
+    await queryInterface.addIndex('reports', {
+      fields: ['created_by'],
       name: 'idx_reports_created_by'
     });
 
-    // Composite indexes for common filtering patterns
-    await queryInterface.addIndex('reports', ['report_type', 'provider'], {
-      name: 'idx_reports_type_provider'
-    });
-    await queryInterface.addIndex('reports', ['category', 'is_active'], {
-      name: 'idx_reports_category_active'
-    });
-    await queryInterface.addIndex('reports', ['is_active', 'is_public'], {
-      name: 'idx_reports_active_public'
-    });
-
-    // Time-based indexes
-    await queryInterface.addIndex('reports', ['created_at'], {
+    await queryInterface.addIndex('reports', {
+      fields: ['created_at'],
       name: 'idx_reports_created_at'
     });
-    await queryInterface.addIndex('reports', ['updated_at'], {
+
+    await queryInterface.addIndex('reports', {
+      fields: ['updated_at'],
       name: 'idx_reports_updated_at'
     });
 
-    console.log('Creating indexes for report_executions table...');
-
-    // Primary access patterns for executions
-    await queryInterface.addIndex('report_executions', ['execution_id'], {
-      unique: true,
-      name: 'idx_executions_execution_id'
+    // Composite indexes for common query patterns
+    await queryInterface.addIndex('reports', {
+      fields: ['report_type', 'provider'],
+      name: 'idx_reports_type_provider'
     });
-    await queryInterface.addIndex('report_executions', ['report_id'], {
+
+    await queryInterface.addIndex('reports', {
+      fields: ['category', 'is_active'],
+      name: 'idx_reports_category_active'
+    });
+
+    await queryInterface.addIndex('reports', {
+      fields: ['created_by', 'is_active'],
+      name: 'idx_reports_created_by_active'
+    });
+
+    // Create comprehensive indexes for report_executions table
+    await queryInterface.addIndex('report_executions', {
+      fields: ['execution_id'],
+      name: 'idx_executions_execution_id',
+      unique: true
+    });
+
+    await queryInterface.addIndex('report_executions', {
+      fields: ['report_id'],
       name: 'idx_executions_report_id'
     });
-    await queryInterface.addIndex('report_executions', ['status'], {
+
+    await queryInterface.addIndex('report_executions', {
+      fields: ['status'],
       name: 'idx_executions_status'
     });
-    await queryInterface.addIndex('report_executions', ['trigger_type'], {
+
+    await queryInterface.addIndex('report_executions', {
+      fields: ['trigger_type'],
       name: 'idx_executions_trigger_type'
     });
-    await queryInterface.addIndex('report_executions', ['started_by'], {
+
+    await queryInterface.addIndex('report_executions', {
+      fields: ['started_by'],
       name: 'idx_executions_started_by'
     });
 
-    // Time-based indexes for execution monitoring
-    await queryInterface.addIndex('report_executions', ['start_time'], {
+    await queryInterface.addIndex('report_executions', {
+      fields: ['start_time'],
       name: 'idx_executions_start_time'
     });
-    await queryInterface.addIndex('report_executions', ['end_time'], {
+
+    await queryInterface.addIndex('report_executions', {
+      fields: ['end_time'],
       name: 'idx_executions_end_time'
     });
-    await queryInterface.addIndex('report_executions', ['created_at'], {
+
+    await queryInterface.addIndex('report_executions', {
+      fields: ['created_at'],
       name: 'idx_executions_created_at'
     });
 
-    // Composite indexes for common query patterns
-    await queryInterface.addIndex('report_executions', ['report_id', 'status'], {
-      name: 'idx_executions_report_status'
-    });
-    await queryInterface.addIndex('report_executions', ['report_id', 'start_time'], {
-      name: 'idx_executions_report_start_time'
-    });
-    await queryInterface.addIndex('report_executions', ['status', 'start_time'], {
-      name: 'idx_executions_status_start_time'
-    });
-    await queryInterface.addIndex('report_executions', ['trigger_type', 'status'], {
-      name: 'idx_executions_trigger_status'
-    });
-
-    // Performance monitoring indexes
-    await queryInterface.addIndex('report_executions', ['duration_ms'], {
-      name: 'idx_executions_duration'
-    });
-    await queryInterface.addIndex('report_executions', ['records_processed'], {
-      name: 'idx_executions_records_processed'
-    });
-
-    // Cleanup and retention indexes
-    await queryInterface.addIndex('report_executions', ['retention_until'], {
+    await queryInterface.addIndex('report_executions', {
+      fields: ['retention_until'],
       name: 'idx_executions_retention_until'
     });
 
-    console.log('Reports system tables created successfully');
+    // Composite indexes for monitoring and reporting queries
+    await queryInterface.addIndex('report_executions', {
+      fields: ['report_id', 'status'],
+      name: 'idx_executions_report_status'
+    });
+
+    await queryInterface.addIndex('report_executions', {
+      fields: ['report_id', 'start_time'],
+      name: 'idx_executions_report_start_time'
+    });
+
+    await queryInterface.addIndex('report_executions', {
+      fields: ['status', 'start_time'],
+      name: 'idx_executions_status_start_time'
+    });
+
+    await queryInterface.addIndex('report_executions', {
+      fields: ['started_by', 'start_time'],
+      name: 'idx_executions_started_by_start_time'
+    });
   },
 
   async down(queryInterface, Sequelize) {
-    console.log('Dropping reports system tables...');
-
-    // Drop tables in reverse order due to foreign key constraints
+    // Drop tables in reverse order (child tables first)
     await queryInterface.dropTable('report_executions');
     await queryInterface.dropTable('reports');
-
-    console.log('Reports system tables dropped successfully');
   }
 };
