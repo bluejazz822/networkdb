@@ -22,13 +22,44 @@ const WORKFLOW_STATUS_QUERY_KEYS = {
 export function useWorkflowDashboard(options: UseWorkflowStatusOptions = {}) {
   const {
     enabled = true,
-    refetchInterval = 30000, // 30 seconds
+    refetchInterval = 120000, // 2 minutes (reduced to avoid rate limiting)
     retry = 2
   } = options
 
   const fetchDashboard = async (): Promise<WorkflowDashboard> => {
-    const response = await apiClient.get<WorkflowDashboardResponse>('/workflows/status')
-    return response.data.data
+    try {
+      console.log('🔍 Fetching workflow dashboard from /workflows/status...')
+      const response = await apiClient.get<any>('/workflows/status')
+      console.log('✅ Dashboard response:', response)
+      console.log('📊 Response data structure:', response.data)
+
+      // Handle different response structures
+      const apiData = response.data?.data || response.data || {}
+      console.log('🎯 API data extracted:', apiData)
+
+      if (!apiData || typeof apiData !== 'object') {
+        throw new Error('Invalid API response structure')
+      }
+
+      // Map actual API response to expected WorkflowDashboard interface
+      const mappedData: WorkflowDashboard = {
+        totalWorkflows: apiData.totalWorkflows || 0,
+        activeWorkflows: apiData.activeWorkflows || 0,
+        inactiveWorkflows: Math.max(0, (apiData.totalWorkflows || 0) - (apiData.activeWorkflows || 0)),
+        errorWorkflows: apiData.failedExecutions || 0,
+        totalExecutions: (apiData.successfulExecutions || 0) + (apiData.failedExecutions || 0),
+        recentExecutions: [],
+        healthStatus: apiData.systemHealth === 'healthy' ? 'healthy' : 'warning',
+        lastSyncAt: apiData.lastSyncTime,
+        syncInProgress: false
+      }
+
+      console.log('🔄 Mapped dashboard data:', mappedData)
+      return mappedData
+    } catch (error) {
+      console.error('❌ Dashboard fetch error:', error)
+      throw error
+    }
   }
 
   const query = useQuery({
@@ -36,9 +67,9 @@ export function useWorkflowDashboard(options: UseWorkflowStatusOptions = {}) {
     queryFn: fetchDashboard,
     enabled,
     refetchInterval,
-    retry,
-    staleTime: 1 * 60 * 1000, // 1 minute
-    gcTime: 5 * 60 * 1000, // 5 minutes
+    retry: 1, // Reduced retry attempts
+    staleTime: 60 * 1000, // 1 minute stale time
+    gcTime: 5 * 60 * 1000, // 5 minutes cache
   })
 
   return {

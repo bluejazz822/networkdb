@@ -1,6 +1,6 @@
 'use strict';
 
-const { createMigrationHelper } = require('../utils/migration-helper');
+const { createMigrationHelper } = require('../../dist/utils/migration-helper');
 const { DataTypes } = require('sequelize');
 
 /** @type {import('sequelize-cli').Migration} */

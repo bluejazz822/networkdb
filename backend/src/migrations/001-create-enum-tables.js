@@ -1,6 +1,6 @@
 'use strict';
 
-const { createMigrationHelper, NetworkResourceStatuses, AwsRegions } = require('../utils/migration-helper');
+const { createMigrationHelper, NetworkResourceStatuses, AwsRegions } = require('../../dist/utils/migration-helper');
 
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {

@@ -1,5 +1,6 @@
 import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Layout, Menu, Typography, Card, Row, Col, Statistic, Button, Space, Tag, Avatar, Dropdown } from 'antd'
 import {
   DashboardOutlined,
@@ -17,15 +18,32 @@ import {
   ApiOutlined,
   GoogleOutlined,
   CloudOutlined,
-  SyncOutlined
+  SyncOutlined,
+  FileTextOutlined,
+  BarChartOutlined,
+  CalendarOutlined
 } from '@ant-design/icons'
 import ProviderNetworkPage from './components/ProviderNetworkPage'
 import DataSyncPage from './components/DataSyncPage'
 import LoginForm from './components/LoginForm'
+import ReportBuilder from './components/ReportBuilder'
+import ReportViewer from './components/ReportViewer'
+import ScheduledReports from './components/ScheduledReports'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 
 const { Header, Sider, Content } = Layout
 const { Title } = Typography
+
+// Create a QueryClient instance
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 3,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      refetchOnWindowFocus: false,
+    },
+  },
+})
 
 // Helper functions for provider colors
 const getProviderColor = (provider?: string) => {
@@ -313,6 +331,18 @@ function ProviderDevicePage() {
   )
 }
 
+function ReportsPage() {
+  return <ReportViewer showDashboard={true} />
+}
+
+function ReportBuilderPage() {
+  return <ReportBuilder />
+}
+
+function ScheduledReportsPage() {
+  return <ScheduledReports />
+}
+
 
 function UserHeader() {
   const { user, logout } = useAuth()
@@ -383,6 +413,12 @@ function AuthenticatedApp() {
     if (path === '/transit-gateways') return ['transit-gateways']
     if (path === '/devices') return ['devices']
     if (path === '/data-sync') return ['data-sync']
+
+    // Handle report paths
+    if (path === '/reports') return ['reports']
+    if (path === '/reports/dashboard') return ['reports', 'reports-dashboard']
+    if (path === '/reports/builder') return ['reports', 'reports-builder']
+    if (path === '/reports/scheduled') return ['reports', 'reports-scheduled']
 
     return ['dashboard']
   }
@@ -634,6 +670,31 @@ function AuthenticatedApp() {
               ]
             },
             {
+              key: 'reports',
+              icon: <FileTextOutlined />,
+              label: 'Reports',
+              children: [
+                {
+                  key: 'reports-dashboard',
+                  icon: <BarChartOutlined />,
+                  label: 'Dashboard',
+                  onClick: () => handleMenuClick('/reports')
+                },
+                {
+                  key: 'reports-builder',
+                  icon: <FileTextOutlined />,
+                  label: 'Report Builder',
+                  onClick: () => handleMenuClick('/reports/builder')
+                },
+                {
+                  key: 'reports-scheduled',
+                  icon: <CalendarOutlined />,
+                  label: 'Scheduled Reports',
+                  onClick: () => handleMenuClick('/reports/scheduled')
+                }
+              ]
+            },
+            {
               key: 'data-sync',
               icon: <SyncOutlined />,
               label: 'Data Synchronization',
@@ -677,6 +738,11 @@ function AuthenticatedApp() {
             <Route path="/devices" element={<Navigate to="/devices/aws" replace />} />
             <Route path="/devices/:provider" element={<ProviderDevicePage />} />
 
+            {/* Reports Routes */}
+            <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/reports/builder" element={<ReportBuilderPage />} />
+            <Route path="/reports/scheduled" element={<ScheduledReportsPage />} />
+
             {/* Data Synchronization Route */}
             <Route path="/data-sync" element={<DataSyncPage />} />
 
@@ -700,11 +766,18 @@ function AppContent() {
 
 function MinimalApp() {
   return (
-    <Router>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </Router>
+    <QueryClientProvider client={queryClient}>
+      <Router
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true
+        }}
+      >
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </Router>
+    </QueryClientProvider>
   )
 }
 

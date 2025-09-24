@@ -56,13 +56,14 @@ export function getEmailConfig(): EmailConfig {
 export function createEmailTransporter(): nodemailer.Transporter | null {
   try {
     const config = getEmailConfig();
-    
+
     if (!config.smtp.host || !config.smtp.auth.user) {
       console.warn('SMTP configuration incomplete, email service will be disabled');
       return null;
     }
 
-    const transporter = nodemailer.createTransport({
+    // Create SMTP configuration object for nodemailer
+    const smtpConfig = {
       host: config.smtp.host,
       port: config.smtp.port,
       secure: config.smtp.secure,
@@ -79,18 +80,48 @@ export function createEmailTransporter(): nodemailer.Transporter | null {
       // Custom logger for debugging in development
       logger: process.env.NODE_ENV === 'development',
       debug: process.env.NODE_ENV === 'development'
-    });
+    };
 
-    // Test connection on startup
-    transporter.verify((error: any, success: any) => {
-      if (error) {
-        console.error('SMTP configuration error:', error.message);
-      } else {
-        console.log('✅ SMTP server connection verified');
-      }
-    });
+    const transporter = nodemailer.createTransporter(smtpConfig);
+
+    // Test connection on startup only if credentials are provided
+    if (config.smtp.auth.user && config.smtp.auth.pass) {
+      transporter.verify((error: any, success: any) => {
+        if (error) {
+          console.error('SMTP configuration error:', error.message);
+        } else {
+          console.log('✅ SMTP server connection verified');
+        }
+      });
+    }
 
     return transporter;
+
+    // // Create SMTP URL for nodemailer (avoids TypeScript configuration issues)
+    // const smtpUrl = `smtp${config.smtp.secure ? 's' : ''}://${encodeURIComponent(config.smtp.auth.user)}:${encodeURIComponent(config.smtp.auth.pass)}@${config.smtp.host}:${config.smtp.port}`;
+
+    // const transporter = nodemailer.createTransport(smtpUrl, {
+    //   // Connection timeout and retry settings
+    //   connectionTimeout: 10000,
+    //   greetingTimeout: 5000,
+    //   socketTimeout: 10000,
+    //   // Disable pool to avoid connection issues
+    //   pool: false,
+    //   // Custom logger for debugging in development
+    //   logger: process.env.NODE_ENV === 'development',
+    //   debug: process.env.NODE_ENV === 'development'
+    // });
+
+    // // Test connection on startup
+    // transporter.verify((error: any, success: any) => {
+    //   if (error) {
+    //     console.error('SMTP configuration error:', error.message);
+    //   } else {
+    //     console.log('✅ SMTP server connection verified');
+    //   }
+    // });
+
+    // return transporter;
   } catch (error) {
     console.error('Failed to create email transporter:', error);
     return null;

@@ -1,0 +1,318 @@
+/* PDF Export Report Styles */
+
+/* Document setup */
+@page {
+    size: A4;
+    margin: 2cm 1.5cm;
+}
+
+/* Reset and base styles */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Arial', 'Helvetica', sans-serif;
+    font-size: 10pt;
+    line-height: 1.4;
+    color: #333;
+    background: white;
+}
+
+/* Document structure */
+.document {
+    width: 100%;
+    max-width: 21cm;
+    margin: 0 auto;
+}
+
+/* Header styles */
+.document-header {
+    border-bottom: 2px solid #2c3e50;
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.document-title {
+    font-size: 18pt;
+    font-weight: bold;
+    color: #2c3e50;
+    margin: 0;
+}
+
+.document-meta {
+    text-align: right;
+    font-size: 9pt;
+    color: #666;
+}
+
+.document-meta p {
+    margin: 2px 0;
+}
+
+/* Main content */
+.document-content {
+    margin: 20px 0;
+}
+
+/* Section styles */
+section {
+    margin-bottom: 25px;
+    page-break-inside: avoid;
+}
+
+section h2 {
+    font-size: 14pt;
+    font-weight: bold;
+    color: #2c3e50;
+    margin-bottom: 12px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #bdc3c7;
+}
+
+/* Summary section */
+.summary-section {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    border-left: 4px solid #3498db;
+}
+
+.summary-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+}
+
+.stat-label {
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.stat-value {
+    color: #3498db;
+    font-weight: bold;
+}
+
+/* Table styles */
+.table-container {
+    overflow: hidden;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+}
+
+.data-table th {
+    background-color: #34495e;
+    color: white;
+    font-weight: bold;
+    padding: 8px 6px;
+    text-align: left;
+    border-bottom: 2px solid #2c3e50;
+}
+
+.data-table td {
+    padding: 6px;
+    border-bottom: 1px solid #ecf0f1;
+    vertical-align: top;
+}
+
+.data-table tr:nth-child(even) {
+    background-color: #f8f9fa;
+}
+
+.data-table tr:hover {
+    background-color: #e8f4f8;
+}
+
+/* Ensure table doesn't break across pages poorly */
+.data-table tr {
+    page-break-inside: avoid;
+}
+
+/* Card layout styles */
+.cards-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 15px;
+}
+
+.data-card {
+    background-color: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 12px;
+    page-break-inside: avoid;
+}
+
+.card-field {
+    margin-bottom: 8px;
+    padding: 4px 0;
+    border-bottom: 1px solid #ecf0f1;
+}
+
+.card-field:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.card-field strong {
+    color: #2c3e50;
+    display: inline-block;
+    min-width: 120px;
+}
+
+/* Footer styles */
+.document-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 40px;
+    background-color: #f8f9fa;
+    border-top: 1px solid #ddd;
+    padding: 10px 20px;
+    font-size: 8pt;
+    color: #666;
+}
+
+.footer-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 21cm;
+    margin: 0 auto;
+}
+
+.footer-text {
+    margin: 0;
+}
+
+.page-info {
+    margin: 0;
+}
+
+/* Responsive adjustments for print */
+@media print {
+    .document {
+        max-width: none;
+        margin: 0;
+    }
+
+    /* Hide elements that shouldn't print */
+    .no-print {
+        display: none !important;
+    }
+
+    /* Ensure good page breaks */
+    .page-break-before {
+        page-break-before: always;
+    }
+
+    .page-break-after {
+        page-break-after: always;
+    }
+
+    .page-break-avoid {
+        page-break-inside: avoid;
+    }
+}
+
+/* Utilities */
+.text-center {
+    text-align: center;
+}
+
+.text-right {
+    text-align: right;
+}
+
+.text-bold {
+    font-weight: bold;
+}
+
+.text-muted {
+    color: #666;
+}
+
+.mb-10 {
+    margin-bottom: 10px;
+}
+
+.mb-20 {
+    margin-bottom: 20px;
+}
+
+.mt-10 {
+    margin-top: 10px;
+}
+
+.mt-20 {
+    margin-top: 20px;
+}
+
+/* Special formatting for different data types */
+.numeric {
+    text-align: right;
+    font-family: 'Courier New', monospace;
+}
+
+.date {
+    white-space: nowrap;
+}
+
+.status {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 8pt;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.status.active {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.status.inactive {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.status.pending {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+/* Long text handling */
+.truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.break-word {
+    word-wrap: break-word;
+    word-break: break-word;
+}

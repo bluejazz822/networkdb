@@ -16,7 +16,7 @@
       "acquire": 30000,
       "idle": 10000
     },
-    "logging": console.log
+    "logging": false
   },
   "test": {
     "username": "root",
@@ -38,11 +38,11 @@
     "logging": false
   },
   "production": {
-    "username": "${DB_USERNAME}",
-    "password": "${DB_PASSWORD}",
-    "database": "${DB_NAME}",
-    "host": "${DB_HOST}",
-    "port": "${DB_PORT}",
+    "username": "root",
+    "password": "Gq34Ko90#110",
+    "database": "mydatabase",
+    "host": "172.16.30.62",
+    "port": 44060,
     "dialect": "mysql",
     "dialectOptions": {
       "charset": "utf8mb4",
