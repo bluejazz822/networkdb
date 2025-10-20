@@ -92,12 +92,12 @@ interface DynamicTableProps {
   refreshInterval?: number
 }
 
-export default function DynamicTable({ 
+export default function DynamicTable({
   apiEndpoint,
   title,
   icon = <CloudServerOutlined />,
-  autoRefresh = true, 
-  refreshInterval = 30000 
+  autoRefresh = true,
+  refreshInterval = 30000
 }: DynamicTableProps) {
   const [data, setData] = useState<any[]>([])
   const [schema, setSchema] = useState<ColumnSchema[]>([])
@@ -112,9 +112,20 @@ export default function DynamicTable({
   const [exportModalVisible, setExportModalVisible] = useState(false)
   const [pageSize, setPageSize] = useState(20)
   const [currentPage, setCurrentPage] = useState(1)
+  const [tableHeight, setTableHeight] = useState(window.innerHeight - 320)
   const [form] = Form.useForm()
 
   const { hasPermission, user } = useAuth()
+
+  // Update table height on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      setTableHeight(window.innerHeight - 320)
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   // Fetch data and schema
   const fetchData = useCallback(async () => {
@@ -657,7 +668,7 @@ export default function DynamicTable({
           dataSource={filteredData}
           rowKey={primaryKey}
           loading={loading}
-          scroll={{ x: 1920, y: 600 }}
+          scroll={{ x: 1920, y: tableHeight }}
           components={{
             header: {
               cell: ResizableTitle,
