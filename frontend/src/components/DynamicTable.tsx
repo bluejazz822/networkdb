@@ -6,12 +6,12 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { 
-  Table, 
-  Tag, 
-  Space, 
-  Typography, 
-  Card, 
+import {
+  Table,
+  Tag,
+  Space,
+  Typography,
+  Card,
   Button,
   Input,
   Select,
@@ -23,8 +23,8 @@ import {
   Form,
   message
 } from 'antd'
-import { 
-  ReloadOutlined, 
+import {
+  ReloadOutlined,
   SearchOutlined,
   CloudServerOutlined,
   EditOutlined,
@@ -34,11 +34,43 @@ import {
   DownloadOutlined
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import { Resizable } from 'react-resizable'
+import type { ResizeCallbackData } from 'react-resizable'
+import 'react-resizable/css/styles.css'
+import './DynamicTable.css'
 import { useAuth } from '../contexts/AuthContext'
 import ExportModal from './ExportModal'
 
 const { Title, Text } = Typography
 const { Option } = Select
+
+// Resizable column title component
+const ResizableTitle = (props: any) => {
+  const { onResize, width, ...restProps } = props
+
+  if (!width) {
+    return <th {...restProps} />
+  }
+
+  return (
+    <Resizable
+      width={width}
+      height={0}
+      handle={
+        <span
+          className="react-resizable-handle"
+          onClick={(e) => {
+            e.stopPropagation()
+          }}
+        />
+      }
+      onResize={onResize}
+      draggableOpts={{ enableUserSelectHack: false }}
+    >
+      <th {...restProps} />
+    </Resizable>
+  )
+}
 
 interface ColumnSchema {
   name: string
@@ -72,13 +104,16 @@ export default function DynamicTable({
   const [loading, setLoading] = useState(false)
   const [searchText, setSearchText] = useState('')
   const [filters, setFilters] = useState<Record<string, string>>({})
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
   const [filterOptions, setFilterOptions] = useState<Record<string, string[]>>({})
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(autoRefresh)
   const [editingRow, setEditingRow] = useState<string | null>(null)
   const [exportModalVisible, setExportModalVisible] = useState(false)
+  const [pageSize, setPageSize] = useState(20)
+  const [currentPage, setCurrentPage] = useState(1)
   const [form] = Form.useForm()
-  
+
   const { hasPermission, user } = useAuth()
 
   // Fetch data and schema
@@ -234,27 +269,61 @@ export default function DynamicTable({
     return String(a).localeCompare(String(b))
   }
 
+  // Handle column resize
+  const handleResize = useCallback((colKey: string) =>
+    (_: React.SyntheticEvent, { size }: ResizeCallbackData) => {
+      setColumnWidths(prev => ({
+        ...prev,
+        [colKey]: size.width
+      }))
+    }, []
+  )
+
   // Generate table columns from schema
   const columns: ColumnsType<any> = useMemo(() => {
     if (!schema.length) return []
 
     const primaryKey = schema.find(col => col.isPrimaryKey)?.name || 'id'
 
-    const dataColumns = schema.map(col => ({
-      title: formatColumnTitle(col.name),
-      dataIndex: col.name,
-      key: col.name,
-      width: col.width || getDefaultWidth(col.displayType),
-      fixed: col.isPrimaryKey ? 'left' as const : undefined,
-      render: (text: any, record: any) => {
-        if (editingRow === record[primaryKey] && col.editable) {
-          return renderEditableCell(col.name, col.displayType)
-        }
-        return renderCell(text, col.displayType, col.name)
-      },
-      ...(col.sortable && { sorter: (a: any, b: any) => sortColumn(a[col.name], b[col.name]) })
-    }))
-    
+    const dataColumns = schema.map(col => {
+      const defaultWidth = col.width || getDefaultWidth(col.displayType)
+      const currentWidth = columnWidths[col.name] || defaultWidth
+
+      return {
+        title: formatColumnTitle(col.name),
+        dataIndex: col.name,
+        key: col.name,
+        width: currentWidth,
+        fixed: col.isPrimaryKey ? 'left' as const : undefined,
+        ellipsis: {
+          showTitle: false,
+        },
+        onHeaderCell: () => ({
+          width: currentWidth,
+          onResize: handleResize(col.name),
+        }),
+        render: (text: any, record: any) => {
+          if (editingRow === record[primaryKey] && col.editable) {
+            return renderEditableCell(col.name, col.displayType)
+          }
+
+          const cellContent = renderCell(text, col.displayType, col.name)
+
+          // Wrap long text content with Tooltip
+          if (text && String(text).length > 30) {
+            return (
+              <Tooltip placement="topLeft" title={String(text)}>
+                {cellContent}
+              </Tooltip>
+            )
+          }
+
+          return cellContent
+        },
+        ...(col.sortable && { sorter: (a: any, b: any) => sortColumn(a[col.name], b[col.name]) })
+      }
+    })
+
     const actionsColumn = {
       title: 'Actions',
       key: 'actions',
@@ -264,13 +333,13 @@ export default function DynamicTable({
     }
 
     return [...dataColumns, actionsColumn]
-  }, [schema, editingRow])
+  }, [schema, editingRow, columnWidths, handleResize])
 
   // Filter data based on search and filters
   const filteredData = useMemo(() => {
     return data.filter(row => {
       // Text search across all string fields
-      const matchesSearch = !searchText || 
+      const matchesSearch = !searchText ||
         schema.some(col => {
           const value = row[col.name]
           return value && String(value).toLowerCase().includes(searchText.toLowerCase())
@@ -286,6 +355,11 @@ export default function DynamicTable({
     })
   }, [data, searchText, filters, schema])
 
+  // Reset to first page when search or filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchText, filters])
+
   // Render cell based on display type
   const renderCell = (text: any, displayType: ColumnSchema['displayType'], columnName: string) => {
     if (!text && text !== 0) return <Text type="secondary">N/A</Text>
@@ -293,53 +367,62 @@ export default function DynamicTable({
     switch (displayType) {
       case 'code':
         return (
-          <Text code copyable={{ text: String(text) }}>
+          <Text
+            code
+            copyable={{ text: String(text) }}
+            style={{
+              display: 'block',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}
+          >
             {String(text)}
           </Text>
         )
-      
+
       case 'tag':
         const color = getTagColor(text, columnName)
-        if (columnName === 'ENV Name' && String(text).length > 20) {
-          return (
-            <div style={{ 
-              wordBreak: 'break-word', 
-              whiteSpace: 'pre-wrap',
-              lineHeight: '1.2',
-              maxWidth: '180px'
-            }}>
-              <Tag 
-                color={color}
-                style={{ 
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                  maxWidth: '100%',
-                  height: 'auto',
-                  padding: '2px 8px',
-                  lineHeight: '1.3'
-                }}
-              >
-                {String(text)}
-              </Tag>
-            </div>
-          )
-        }
-        return <Tag color={color}>{String(text)}</Tag>
-      
+        return (
+          <Tag
+            color={color}
+            style={{
+              maxWidth: '100%',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              display: 'inline-block'
+            }}
+          >
+            {String(text)}
+          </Tag>
+        )
+
       case 'badge':
         const badgeStatus = getBadgeStatus(text, columnName)
         return <Badge status={badgeStatus} text={String(text)} />
-      
+
       case 'date':
         try {
           return new Date(text).toLocaleString()
         } catch {
           return String(text)
         }
-      
+
       case 'text':
       default:
-        return <Text strong={columnName === 'Name'}>{String(text)}</Text>
+        return (
+          <Text
+            strong={columnName === 'Name'}
+            style={{
+              display: 'block',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {String(text)}
+          </Text>
+        )
     }
   }
 
@@ -481,7 +564,7 @@ export default function DynamicTable({
     const colSpan = Math.max(3, Math.floor(24 / totalCols))
 
     return (
-      <Row gutter={16} style={{ marginBottom: 16 }}>
+      <Row gutter={16}>
         <Col span={colSpan}>
           <Input
             placeholder={`Search ${title.toLowerCase()}...`}
@@ -515,36 +598,44 @@ export default function DynamicTable({
   const primaryKey = schema.find(col => col.isPrimaryKey)?.name || 'id'
 
   return (
-    <Card>
-      <div style={{ marginBottom: 16 }}>
+    <Card className="dynamic-table-card" bordered={false}>
+      <div className="dynamic-table-header">
         <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
           <Col>
-            <Title level={3} style={{ margin: 0 }}>
-              {icon} {title} ({filteredData.length} of {data.length})
-            </Title>
+            <div className="dynamic-table-title">
+              <span className="dynamic-table-title-icon">{icon}</span>
+              <Title level={3} style={{ margin: 0, display: 'inline' }}>
+                {title}
+              </Title>
+              <span className="dynamic-table-count-badge">
+                {filteredData.length} of {data.length}
+              </span>
+            </div>
           </Col>
           <Col>
-            <Space>
-              <Text type="secondary">
-                {lastUpdated && `Last updated: ${lastUpdated.toLocaleTimeString()}`}
+            <Space size="middle">
+              <Text type="secondary" style={{ fontSize: '13px' }}>
+                {lastUpdated && `🕐 ${lastUpdated.toLocaleTimeString()}`}
               </Text>
               <Tooltip title={`Auto-refresh every ${refreshInterval/1000}s`}>
-                <Switch 
+                <Switch
                   checked={autoRefreshEnabled}
                   onChange={setAutoRefreshEnabled}
                   checkedChildren="Auto"
                   unCheckedChildren="Manual"
                 />
               </Tooltip>
-              <Button 
-                icon={<DownloadOutlined />} 
+              <Button
+                className="dynamic-table-button"
+                icon={<DownloadOutlined />}
                 onClick={() => setExportModalVisible(true)}
                 disabled={filteredData.length === 0}
               >
                 Export
               </Button>
-              <Button 
-                icon={<ReloadOutlined />} 
+              <Button
+                className="dynamic-table-button"
+                icon={<ReloadOutlined />}
                 onClick={fetchData}
                 loading={loading}
                 type="primary"
@@ -555,7 +646,9 @@ export default function DynamicTable({
           </Col>
         </Row>
 
-        {renderFilters()}
+        <div className="dynamic-table-filters">
+          {renderFilters()}
+        </div>
       </div>
 
       <Form form={form} component={false}>
@@ -565,13 +658,27 @@ export default function DynamicTable({
           rowKey={primaryKey}
           loading={loading}
           scroll={{ x: 1920, y: 600 }}
+          components={{
+            header: {
+              cell: ResizableTitle,
+            },
+          }}
           pagination={{
+            current: currentPage,
+            pageSize: pageSize,
             total: filteredData.length,
-            pageSize: 20,
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (total, range) => 
+            showTotal: (total, range) =>
               `${range[0]}-${range[1]} of ${total} ${title.toLowerCase()}`,
+            onChange: (page, newPageSize) => {
+              setCurrentPage(page)
+              if (newPageSize !== pageSize) {
+                setPageSize(newPageSize)
+                setCurrentPage(1) // Reset to first page when page size changes
+              }
+            },
+            pageSizeOptions: ['10', '20', '50', '100', '200'],
           }}
           size="small"
         />

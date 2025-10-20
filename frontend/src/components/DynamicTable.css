@@ -1,0 +1,264 @@
+/* Enhanced Table Container Styles */
+.dynamic-table-container {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.dynamic-table-card {
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e8e8e8;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.dynamic-table-card:hover {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+/* Header Styles */
+.dynamic-table-header {
+  background: linear-gradient(to right, #f8f9fa, #ffffff);
+  padding: 20px 24px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.dynamic-table-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 600;
+  color: #262626;
+  margin: 0 !important;
+}
+
+.dynamic-table-title-icon {
+  font-size: 24px;
+  color: #1890ff;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.dynamic-table-count-badge {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  margin-left: 8px;
+}
+
+/* Filter Section Styles */
+.dynamic-table-filters {
+  background: #fafafa;
+  padding: 16px;
+  border-radius: 8px;
+  margin-top: 16px;
+}
+
+/* Enhanced Button Styles */
+.dynamic-table-button {
+  border-radius: 6px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.dynamic-table-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
+}
+
+/* Table Styles */
+.ant-table {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.ant-table-thead > tr > th {
+  background: linear-gradient(to bottom, #fafafa, #f5f5f5);
+  font-weight: 600;
+  color: #262626;
+  border-bottom: 2px solid #e8e8e8;
+  padding: 16px 12px;
+  transition: background 0.3s ease;
+}
+
+.ant-table-thead > tr > th:hover {
+  background: linear-gradient(to bottom, #f0f0f0, #e8e8e8);
+}
+
+.ant-table-tbody > tr {
+  transition: all 0.3s ease;
+}
+
+.ant-table-tbody > tr:hover {
+  background: #f0f7ff;
+  transform: scale(1.001);
+}
+
+.ant-table-tbody > tr > td {
+  padding: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+/* Striped rows for better readability */
+.ant-table-tbody > tr:nth-child(even) {
+  background: #fafafa;
+}
+
+.ant-table-tbody > tr:nth-child(even):hover {
+  background: #e6f7ff;
+}
+
+/* Resizable column styles */
+.react-resizable {
+  position: relative;
+}
+
+.react-resizable-handle {
+  position: absolute;
+  width: 10px;
+  height: 100%;
+  bottom: 0;
+  right: -5px;
+  cursor: col-resize;
+  z-index: 1;
+}
+
+.react-resizable-handle::after {
+  content: '';
+  position: absolute;
+  width: 3px;
+  height: 40%;
+  top: 30%;
+  left: 50%;
+  margin-left: -1.5px;
+  background: linear-gradient(to bottom, #d9d9d9, #bfbfbf);
+  border-radius: 2px;
+  transition: all 0.3s ease;
+}
+
+.react-resizable-handle:hover::after {
+  background: linear-gradient(to bottom, #1890ff, #096dd9);
+  width: 4px;
+  margin-left: -2px;
+  box-shadow: 0 0 8px rgba(24, 144, 255, 0.5);
+}
+
+/* Prevent text selection during resize */
+.react-resizable-handle:active {
+  user-select: none;
+}
+
+/* Table header cell with resize handle */
+th.react-resizable {
+  position: relative;
+  background-clip: padding-box;
+}
+
+/* Ensure resize handle works with fixed columns */
+.ant-table-cell-fix-left,
+.ant-table-cell-fix-right {
+  z-index: 2;
+}
+
+.ant-table-cell-fix-left .react-resizable-handle,
+.ant-table-cell-fix-right .react-resizable-handle {
+  z-index: 3;
+}
+
+/* Enhanced Tag Styles */
+.ant-tag {
+  border-radius: 6px;
+  padding: 2px 10px;
+  font-weight: 500;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Enhanced Badge Styles */
+.ant-badge-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  box-shadow: 0 0 6px currentColor;
+}
+
+/* Pagination Styles */
+.ant-pagination {
+  padding: 16px 0;
+}
+
+.ant-pagination-item {
+  border-radius: 6px;
+  border: 1px solid #d9d9d9;
+  transition: all 0.3s ease;
+}
+
+.ant-pagination-item:hover {
+  border-color: #1890ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(24, 144, 255, 0.2);
+}
+
+.ant-pagination-item-active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: transparent;
+}
+
+.ant-pagination-item-active a {
+  color: white;
+}
+
+/* Loading State Enhancement */
+.ant-spin-blur {
+  opacity: 0.5;
+  filter: blur(2px);
+  transition: opacity 0.3s, filter 0.3s;
+}
+
+/* Scrollbar Styles */
+.ant-table-body::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.ant-table-body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.ant-table-body::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 4px;
+}
+
+.ant-table-body::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
+
+/* Empty State Styles */
+.ant-empty {
+  padding: 48px 0;
+}
+
+.ant-empty-image {
+  opacity: 0.6;
+}
+
+/* Action Button Styles */
+.ant-btn-link {
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.ant-btn-link:hover {
+  transform: scale(1.05);
+}
