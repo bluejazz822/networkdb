@@ -13,6 +13,10 @@ import bulkRoutes from './bulk';
 import searchRoutes from './search';
 import reportsRoutes from './reports';
 import workflowRoutes from './workflows';
+import loadbalancerRoutes from './loadbalancer';
+import natgatewayRoutes from './natgateway';
+import vpnconnectionRoutes from './vpnconnection';
+import transitgatewayattachmentRoutes from './transitgatewayattachment';
 
 const router: Router = Router();
 
@@ -36,9 +40,13 @@ router.get('/version', (req, res) => {
       environment: process.env.NODE_ENV || 'development',
       features: [
         'vpc-management',
-        'transit-gateway-management', 
+        'transit-gateway-management',
         'customer-gateway-management',
         'vpc-endpoint-management',
+        'load-balancer-management',
+        'nat-gateway-management',
+        'vpn-connection-management',
+        'transit-gateway-attachment-management',
         'bulk-operations',
         'import-export',
         'python-scripts',
@@ -63,6 +71,10 @@ router.use('/vpcs', vpcRoutes);
 router.use('/transit-gateways', transitGatewayRoutes);
 router.use('/customer-gateways', customerGatewayRoutes);
 router.use('/vpc-endpoints', vpcEndpointRoutes);
+router.use('/loadbalancers', loadbalancerRoutes); // Load Balancer routes
+router.use('/natgateways', natgatewayRoutes); // NAT Gateway routes
+router.use('/vpnconnections', vpnconnectionRoutes); // VPN Connection routes
+router.use('/transitgatewayattachments', transitgatewayattachmentRoutes); // Transit Gateway Attachment routes
 router.use('/', importExportRoutes); // Import/export routes are at root level
 router.use('/bulk', bulkRoutes); // Bulk operations routes
 router.use('/search', searchRoutes); // Advanced search and filtering routes

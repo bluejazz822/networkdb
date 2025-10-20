@@ -88,15 +88,31 @@ export default function DynamicTable({
       const response = await fetch(apiEndpoint)
       const result = await response.json()
       if (result.success && result.data) {
-        // Transform data if it's VPC data
-        let transformedData = result.data
-        if (apiEndpoint.includes('/vpcs')) {
-          transformedData = result.data.map((item: any, index: number) => ({
+        // Transform data to ensure unique ID for all network resources
+        let transformedData = result.data.map((item: any, index: number) => {
+          // Determine ID field based on resource type
+          let id = item.id || `item-${index}`
+
+          if (apiEndpoint.includes('/vpcs')) {
+            id = item.VpcId || item.VcnId || item.VNetName || item.id || `vpc-${index}`
+          } else if (apiEndpoint.includes('/loadbalancers')) {
+            id = item.LoadBalancerArn || item.LoadBalancerId || item.LoadBalancerName || item.id || `lb-${index}`
+          } else if (apiEndpoint.includes('/natgateways')) {
+            id = item.NatGatewayId || item.GatewayId || item.id || `ngw-${index}`
+          } else if (apiEndpoint.includes('/vpnconnections')) {
+            id = item.VpnConnectionId || item.ConnectionId || item.id || `vpn-${index}`
+          } else if (apiEndpoint.includes('/transitgatewayattachments')) {
+            id = item.TransitGatewayAttachmentId || item.AttachmentId || item.id || `tgw-attach-${index}`
+          } else if (apiEndpoint.includes('/vpcendpoints')) {
+            id = item.VpcEndpointId || item.EndpointId || item.id || `vpce-${index}`
+          }
+
+          return {
             ...item,
-            id: item.VpcId || item.id || `item-${index}`,
-            Site: item.Region || item.Site || 'Unknown'
-          }))
-        }
+            id,
+            Site: item.Region || item.region || item.Site || item.Location || 'Unknown'
+          }
+        })
 
         setData(transformedData)
         if (result.schema) {

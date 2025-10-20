@@ -70,16 +70,47 @@ export default function ProviderNetworkPage({ networkType }: ProviderNetworkPage
         if (supportedVpcProviders.includes(provider)) {
           return `/api/vpcs/${provider}`
         }
-        // Other providers return null to show empty state
+        return null
+      case 'loadbalancers':
+        // Load balancers: AWS, Alibaba, Azure, Huawei, Oracle
+        const supportedLbProviders = ['aws', 'ali', 'azure', 'huawei', 'oci']
+        if (supportedLbProviders.includes(provider)) {
+          return `/api/loadbalancers/${provider}`
+        }
+        return null
+      case 'natgateways':
+        // NAT Gateways: AWS, Alibaba, Azure, Huawei, Oracle
+        const supportedNgwProviders = ['aws', 'ali', 'azure', 'huawei', 'oci']
+        if (supportedNgwProviders.includes(provider)) {
+          return `/api/natgateways/${provider}`
+        }
+        return null
+      case 'vpnconnections':
+        // VPN Connections: AWS, Alibaba, Azure, Huawei, Oracle
+        const supportedVpnProviders = ['aws', 'ali', 'azure', 'huawei', 'oci']
+        if (supportedVpnProviders.includes(provider)) {
+          return `/api/vpnconnections/${provider}`
+        }
+        return null
+      case 'transitgatewayattachments':
+        // Transit Gateway Attachments: Support all providers
+        const supportedTgwProviders = ['aws', 'azure', 'ali', 'oci', 'gcp', 'huawei', 'others']
+        if (supportedTgwProviders.includes(provider)) {
+          return `/api/transitgatewayattachments/${provider}`
+        }
+        return null
+      case 'vpcendpoints':
+        // VPC Endpoints (Private Link): Support all providers
+        const supportedVpcEndpointProviders = ['aws', 'azure', 'ali', 'oci', 'gcp', 'huawei']
+        if (supportedVpcEndpointProviders.includes(provider)) {
+          return `/api/vpcendpoints/${provider}`
+        }
         return null
       case 'subnets':
-        // No data association needed for any providers yet
         return null
       case 'transit-gateways':
-        // No data association needed for any providers yet
         return null
       case 'devices':
-        // No data association needed for any providers yet
         return null
       default:
         return null
@@ -91,9 +122,14 @@ export default function ProviderNetworkPage({ networkType }: ProviderNetworkPage
       'vpcs': 'VPCs',
       'subnets': 'Subnets',
       'transit-gateways': 'Transit Gateways',
-      'devices': 'Network Devices'
+      'devices': 'Network Devices',
+      'loadbalancers': 'Load Balancers',
+      'natgateways': 'NAT Gateways',
+      'vpnconnections': 'VPN Connections',
+      'transitgatewayattachments': 'Transit Gateways',
+      'vpcendpoints': 'Private Link'
     }
-    
+
     return `${config.name} ${networkTypeMap[networkType] || networkType.toUpperCase()}`
   }
 

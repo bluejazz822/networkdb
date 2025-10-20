@@ -21,7 +21,10 @@ import {
   SyncOutlined,
   FileTextOutlined,
   BarChartOutlined,
-  CalendarOutlined
+  CalendarOutlined,
+  LockOutlined,
+  ClusterOutlined,
+  LinkOutlined
 } from '@ant-design/icons'
 import ProviderNetworkPage from './components/ProviderNetworkPage'
 import DataSyncPage from './components/DataSyncPage'
@@ -307,26 +310,42 @@ function ProviderVPCPage() {
   )
 }
 
-function ProviderSubnetPage() {
+function ProviderLoadBalancerPage() {
   return (
     <div style={{ padding: '24px' }}>
-      <ProviderNetworkPage networkType="subnets" />
+      <ProviderNetworkPage networkType="loadbalancers" />
     </div>
   )
 }
 
-function ProviderTransitGatewayPage() {
+function ProviderNatGatewayPage() {
   return (
     <div style={{ padding: '24px' }}>
-      <ProviderNetworkPage networkType="transit-gateways" />
+      <ProviderNetworkPage networkType="natgateways" />
     </div>
   )
 }
 
-function ProviderDevicePage() {
+function ProviderVpnConnectionPage() {
   return (
     <div style={{ padding: '24px' }}>
-      <ProviderNetworkPage networkType="devices" />
+      <ProviderNetworkPage networkType="vpnconnections" />
+    </div>
+  )
+}
+
+function ProviderTransitGatewayAttachmentPage() {
+  return (
+    <div style={{ padding: '24px' }}>
+      <ProviderNetworkPage networkType="transitgatewayattachments" />
+    </div>
+  )
+}
+
+function ProviderVpcEndpointPage() {
+  return (
+    <div style={{ padding: '24px' }}>
+      <ProviderNetworkPage networkType="vpcendpoints" />
     </div>
   )
 }
@@ -394,24 +413,34 @@ function AuthenticatedApp() {
       const provider = path.split('/')[2]
       return ['vpcs', `vpcs-${provider}`]
     }
-    if (path.includes('/subnets/')) {
+    if (path.includes('/loadbalancers/')) {
       const provider = path.split('/')[2]
-      return ['subnets', `subnets-${provider}`]
+      return ['loadbalancers', `loadbalancers-${provider}`]
     }
-    if (path.includes('/transit-gateways/')) {
+    if (path.includes('/natgateways/')) {
       const provider = path.split('/')[2]
-      return ['transit-gateways', `transit-gateways-${provider}`]
+      return ['natgateways', `natgateways-${provider}`]
     }
-    if (path.includes('/devices/')) {
+    if (path.includes('/vpnconnections/')) {
       const provider = path.split('/')[2]
-      return ['devices', `devices-${provider}`]
+      return ['vpnconnections', `vpnconnections-${provider}`]
+    }
+    if (path.includes('/transitgatewayattachments/')) {
+      const provider = path.split('/')[2]
+      return ['transitgatewayattachments', `transitgatewayattachments-${provider}`]
+    }
+    if (path.includes('/vpcendpoints/')) {
+      const provider = path.split('/')[2]
+      return ['vpcendpoints', `vpcendpoints-${provider}`]
     }
     
     // Handle main category paths
     if (path === '/vpcs') return ['vpcs']
-    if (path === '/subnets') return ['subnets']
-    if (path === '/transit-gateways') return ['transit-gateways']
-    if (path === '/devices') return ['devices']
+    if (path === '/loadbalancers') return ['loadbalancers']
+    if (path === '/natgateways') return ['natgateways']
+    if (path === '/vpnconnections') return ['vpnconnections']
+    if (path === '/transitgatewayattachments') return ['transitgatewayattachments']
+    if (path === '/vpcendpoints') return ['vpcendpoints']
     if (path === '/data-sync') return ['data-sync']
 
     // Handle report paths
@@ -523,149 +552,205 @@ function AuthenticatedApp() {
               ]
             },
             {
-              key: 'subnets',
-              icon: <PartitionOutlined />,
-              label: 'Subnets',
+              key: 'loadbalancers',
+              icon: <CloudServerOutlined />,
+              label: 'Load Balancers',
               children: [
                 {
-                  key: 'subnets-aws',
+                  key: 'loadbalancers-aws',
                   icon: <AmazonOutlined />,
                   label: 'AWS',
-                  onClick: () => handleMenuClick('/subnets/aws')
+                  onClick: () => handleMenuClick('/loadbalancers/aws')
                 },
                 {
-                  key: 'subnets-azure',
+                  key: 'loadbalancers-azure',
                   icon: <WindowsOutlined />,
                   label: 'Azure',
-                  onClick: () => handleMenuClick('/subnets/azure')
+                  onClick: () => handleMenuClick('/loadbalancers/azure')
                 },
                 {
-                  key: 'subnets-ali',
+                  key: 'loadbalancers-ali',
                   icon: <AlipayOutlined />,
                   label: 'Alibaba Cloud',
-                  onClick: () => handleMenuClick('/subnets/ali')
+                  onClick: () => handleMenuClick('/loadbalancers/ali')
                 },
                 {
-                  key: 'subnets-oci',
+                  key: 'loadbalancers-oci',
                   icon: <ApiOutlined />,
                   label: 'Oracle Cloud',
-                  onClick: () => handleMenuClick('/subnets/oci')
+                  onClick: () => handleMenuClick('/loadbalancers/oci')
                 },
                 {
-                  key: 'subnets-gcp',
-                  icon: <GoogleOutlined />,
-                  label: 'Google Cloud',
-                  onClick: () => handleMenuClick('/subnets/gcp')
-                },
-                {
-                  key: 'subnets-huawei',
+                  key: 'loadbalancers-huawei',
                   icon: <CloudOutlined />,
                   label: 'Huawei Cloud',
-                  onClick: () => handleMenuClick('/subnets/huawei')
-                },
-                {
-                  key: 'subnets-others',
-                  icon: <CloudServerOutlined />,
-                  label: 'Others',
-                  onClick: () => handleMenuClick('/subnets/others')
+                  onClick: () => handleMenuClick('/loadbalancers/huawei')
                 }
               ]
             },
             {
-              key: 'transit-gateways',
-              icon: <BranchesOutlined />,
+              key: 'natgateways',
+              icon: <GlobalOutlined />,
+              label: 'NAT Gateways',
+              children: [
+                {
+                  key: 'natgateways-aws',
+                  icon: <AmazonOutlined />,
+                  label: 'AWS',
+                  onClick: () => handleMenuClick('/natgateways/aws')
+                },
+                {
+                  key: 'natgateways-azure',
+                  icon: <WindowsOutlined />,
+                  label: 'Azure',
+                  onClick: () => handleMenuClick('/natgateways/azure')
+                },
+                {
+                  key: 'natgateways-ali',
+                  icon: <AlipayOutlined />,
+                  label: 'Alibaba Cloud',
+                  onClick: () => handleMenuClick('/natgateways/ali')
+                },
+                {
+                  key: 'natgateways-oci',
+                  icon: <ApiOutlined />,
+                  label: 'Oracle Cloud',
+                  onClick: () => handleMenuClick('/natgateways/oci')
+                },
+                {
+                  key: 'natgateways-huawei',
+                  icon: <CloudOutlined />,
+                  label: 'Huawei Cloud',
+                  onClick: () => handleMenuClick('/natgateways/huawei')
+                }
+              ]
+            },
+            {
+              key: 'vpnconnections',
+              icon: <LockOutlined />,
+              label: 'VPN Connections',
+              children: [
+                {
+                  key: 'vpnconnections-aws',
+                  icon: <AmazonOutlined />,
+                  label: 'AWS',
+                  onClick: () => handleMenuClick('/vpnconnections/aws')
+                },
+                {
+                  key: 'vpnconnections-azure',
+                  icon: <WindowsOutlined />,
+                  label: 'Azure',
+                  onClick: () => handleMenuClick('/vpnconnections/azure')
+                },
+                {
+                  key: 'vpnconnections-ali',
+                  icon: <AlipayOutlined />,
+                  label: 'Alibaba Cloud',
+                  onClick: () => handleMenuClick('/vpnconnections/ali')
+                },
+                {
+                  key: 'vpnconnections-oci',
+                  icon: <ApiOutlined />,
+                  label: 'Oracle Cloud',
+                  onClick: () => handleMenuClick('/vpnconnections/oci')
+                },
+                {
+                  key: 'vpnconnections-huawei',
+                  icon: <CloudOutlined />,
+                  label: 'Huawei Cloud',
+                  onClick: () => handleMenuClick('/vpnconnections/huawei')
+                }
+              ]
+            },
+            {
+              key: 'transitgatewayattachments',
+              icon: <ClusterOutlined />,
               label: 'Transit Gateways',
               children: [
                 {
-                  key: 'transit-gateways-aws',
+                  key: 'transitgatewayattachments-aws',
                   icon: <AmazonOutlined />,
                   label: 'AWS',
-                  onClick: () => handleMenuClick('/transit-gateways/aws')
+                  onClick: () => handleMenuClick('/transitgatewayattachments/aws')
                 },
                 {
-                  key: 'transit-gateways-azure',
+                  key: 'transitgatewayattachments-azure',
                   icon: <WindowsOutlined />,
                   label: 'Azure',
-                  onClick: () => handleMenuClick('/transit-gateways/azure')
+                  onClick: () => handleMenuClick('/transitgatewayattachments/azure')
                 },
                 {
-                  key: 'transit-gateways-ali',
+                  key: 'transitgatewayattachments-ali',
                   icon: <AlipayOutlined />,
                   label: 'Alibaba Cloud',
-                  onClick: () => handleMenuClick('/transit-gateways/ali')
+                  onClick: () => handleMenuClick('/transitgatewayattachments/ali')
                 },
                 {
-                  key: 'transit-gateways-oci',
+                  key: 'transitgatewayattachments-oci',
                   icon: <ApiOutlined />,
                   label: 'Oracle Cloud',
-                  onClick: () => handleMenuClick('/transit-gateways/oci')
+                  onClick: () => handleMenuClick('/transitgatewayattachments/oci')
                 },
                 {
-                  key: 'transit-gateways-gcp',
+                  key: 'transitgatewayattachments-gcp',
                   icon: <GoogleOutlined />,
                   label: 'Google Cloud',
-                  onClick: () => handleMenuClick('/transit-gateways/gcp')
+                  onClick: () => handleMenuClick('/transitgatewayattachments/gcp')
                 },
                 {
-                  key: 'transit-gateways-huawei',
+                  key: 'transitgatewayattachments-huawei',
                   icon: <CloudOutlined />,
                   label: 'Huawei Cloud',
-                  onClick: () => handleMenuClick('/transit-gateways/huawei')
+                  onClick: () => handleMenuClick('/transitgatewayattachments/huawei')
                 },
                 {
-                  key: 'transit-gateways-others',
+                  key: 'transitgatewayattachments-others',
                   icon: <CloudServerOutlined />,
                   label: 'Others',
-                  onClick: () => handleMenuClick('/transit-gateways/others')
+                  onClick: () => handleMenuClick('/transitgatewayattachments/others')
                 }
               ]
             },
             {
-              key: 'devices',
-              icon: <CloudServerOutlined />,
-              label: 'Network Devices',
+              key: 'vpcendpoints',
+              icon: <LinkOutlined />,
+              label: 'Private Link',
               children: [
                 {
-                  key: 'devices-aws',
+                  key: 'vpcendpoints-aws',
                   icon: <AmazonOutlined />,
                   label: 'AWS',
-                  onClick: () => handleMenuClick('/devices/aws')
+                  onClick: () => handleMenuClick('/vpcendpoints/aws')
                 },
                 {
-                  key: 'devices-azure',
+                  key: 'vpcendpoints-azure',
                   icon: <WindowsOutlined />,
                   label: 'Azure',
-                  onClick: () => handleMenuClick('/devices/azure')
+                  onClick: () => handleMenuClick('/vpcendpoints/azure')
                 },
                 {
-                  key: 'devices-ali',
+                  key: 'vpcendpoints-ali',
                   icon: <AlipayOutlined />,
                   label: 'Alibaba Cloud',
-                  onClick: () => handleMenuClick('/devices/ali')
+                  onClick: () => handleMenuClick('/vpcendpoints/ali')
                 },
                 {
-                  key: 'devices-oci',
+                  key: 'vpcendpoints-oci',
                   icon: <ApiOutlined />,
                   label: 'Oracle Cloud',
-                  onClick: () => handleMenuClick('/devices/oci')
+                  onClick: () => handleMenuClick('/vpcendpoints/oci')
                 },
                 {
-                  key: 'devices-gcp',
+                  key: 'vpcendpoints-gcp',
                   icon: <GoogleOutlined />,
                   label: 'Google Cloud',
-                  onClick: () => handleMenuClick('/devices/gcp')
+                  onClick: () => handleMenuClick('/vpcendpoints/gcp')
                 },
                 {
-                  key: 'devices-huawei',
+                  key: 'vpcendpoints-huawei',
                   icon: <CloudOutlined />,
                   label: 'Huawei Cloud',
-                  onClick: () => handleMenuClick('/devices/huawei')
-                },
-                {
-                  key: 'devices-others',
-                  icon: <CloudServerOutlined />,
-                  label: 'Others',
-                  onClick: () => handleMenuClick('/devices/others')
+                  onClick: () => handleMenuClick('/vpcendpoints/huawei')
                 }
               ]
             },
@@ -725,18 +810,6 @@ function AuthenticatedApp() {
             {/* VPC Routes */}
             <Route path="/vpcs" element={<Navigate to="/vpcs/aws" replace />} />
             <Route path="/vpcs/:provider" element={<ProviderVPCPage />} />
-            
-            {/* Subnet Routes */}
-            <Route path="/subnets" element={<Navigate to="/subnets/aws" replace />} />
-            <Route path="/subnets/:provider" element={<ProviderSubnetPage />} />
-            
-            {/* Transit Gateway Routes */}
-            <Route path="/transit-gateways" element={<Navigate to="/transit-gateways/aws" replace />} />
-            <Route path="/transit-gateways/:provider" element={<ProviderTransitGatewayPage />} />
-            
-            {/* Network Devices Routes */}
-            <Route path="/devices" element={<Navigate to="/devices/aws" replace />} />
-            <Route path="/devices/:provider" element={<ProviderDevicePage />} />
 
             {/* Reports Routes */}
             <Route path="/reports" element={<ReportsPage />} />
@@ -745,6 +818,26 @@ function AuthenticatedApp() {
 
             {/* Data Synchronization Route */}
             <Route path="/data-sync" element={<DataSyncPage />} />
+
+            {/* Load Balancer Routes */}
+            <Route path="/loadbalancers" element={<Navigate to="/loadbalancers/aws" replace />} />
+            <Route path="/loadbalancers/:provider" element={<ProviderLoadBalancerPage />} />
+
+            {/* NAT Gateway Routes */}
+            <Route path="/natgateways" element={<Navigate to="/natgateways/aws" replace />} />
+            <Route path="/natgateways/:provider" element={<ProviderNatGatewayPage />} />
+
+            {/* VPN Connection Routes */}
+            <Route path="/vpnconnections" element={<Navigate to="/vpnconnections/aws" replace />} />
+            <Route path="/vpnconnections/:provider" element={<ProviderVpnConnectionPage />} />
+
+            {/* Transit Gateway Attachment Routes */}
+            <Route path="/transitgatewayattachments" element={<Navigate to="/transitgatewayattachments/aws" replace />} />
+            <Route path="/transitgatewayattachments/:provider" element={<ProviderTransitGatewayAttachmentPage />} />
+
+            {/* VPC Endpoint Routes */}
+            <Route path="/vpcendpoints" element={<Navigate to="/vpcendpoints/aws" replace />} />
+            <Route path="/vpcendpoints/:provider" element={<ProviderVpcEndpointPage />} />
 
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
@@ -780,6 +873,7 @@ function MinimalApp() {
     </QueryClientProvider>
   )
 }
+
 
 function App() {
   return <MinimalApp />

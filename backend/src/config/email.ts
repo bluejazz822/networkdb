@@ -82,7 +82,7 @@ export function createEmailTransporter(): nodemailer.Transporter | null {
       debug: process.env.NODE_ENV === 'development'
     };
 
-    const transporter = nodemailer.createTransporter(smtpConfig);
+    const transporter = nodemailer.createTransport(smtpConfig);
 
     // Test connection on startup only if credentials are provided
     if (config.smtp.auth.user && config.smtp.auth.pass) {

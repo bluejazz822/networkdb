@@ -1,5 +1,7 @@
 import { DataTypes, Model, Optional } from 'sequelize';
-import { sequelize } from '../config/database';
+import { getDatabase } from '../config/database';
+
+const sequelize = getDatabase();
 
 export interface ReportScheduleAttributes {
   id: number;

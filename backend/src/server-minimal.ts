@@ -739,6 +739,469 @@ app.get('/api/vpcs/:provider/:id', async (req, res) => {
   }
 })
 
+// Load Balancer routes - by provider
+app.get('/api/loadbalancers/:provider?', async (req, res) => {
+  try {
+    const { provider } = req.params
+    const { limit = 1000 } = req.query
+
+    if (!dbConnected) {
+      return res.status(503).json({ success: false, error: 'Database not connected' })
+    }
+
+    // Map provider to table name
+    const providerTableMap: Record<string, string> = {
+      'aws': 'lb_info',
+      'ali': 'ali_lb_info',
+      'aliyun': 'ali_lb_info',
+      'azure': 'azure_lb_info',
+      'hwc': 'hwc_lb_info',
+      'huawei': 'hwc_lb_info',
+      'oci': 'oci_lb_info',
+      'oracle': 'oci_lb_info'
+    }
+
+    // If provider specified, return data for that provider only
+    if (provider) {
+      const tableName = providerTableMap[provider.toLowerCase()]
+      if (!tableName) {
+        return res.status(400).json({
+          success: false,
+          error: 'Unsupported provider'
+        })
+      }
+
+      try {
+        // Get table schema
+        const tableInfo = await sequelize.query(
+          `DESCRIBE ${tableName}`,
+          { type: QueryTypes.SELECT }
+        ) as any[]
+
+        // Get data
+        const data = await sequelize.query(`SELECT * FROM ${tableName} LIMIT ${limit}`, {
+          type: QueryTypes.SELECT
+        })
+
+        // Transform schema to frontend format
+        const transformedSchema = tableInfo.map((column: any) => ({
+          name: column.Field,
+          type: column.Type.split('(')[0],
+          nullable: column.Null === 'YES',
+          isPrimaryKey: column.Key === 'PRI',
+          filterable: ['varchar', 'char', 'text', 'enum'].some(t => column.Type.includes(t)),
+          sortable: true,
+          editable: !column.Key && column.Field !== 'created_time' && column.Field !== 'updated_time',
+          displayType: getDisplayType(column.Field, column.Type),
+          width: getColumnWidth(column.Field, column.Type)
+        }))
+
+        return res.json({
+          success: true,
+          data,
+          total: data.length,
+          provider,
+          tableName,
+          schema: transformedSchema
+        })
+      } catch (err) {
+        return res.json({ success: true, data: [], total: 0, schema: [] })
+      }
+    }
+
+    // If no provider, return all
+    const tables = ['lb_info', 'ali_lb_info', 'azure_lb_info', 'hwc_lb_info', 'oci_lb_info']
+    const providers = ['AWS', 'Alibaba Cloud', 'Azure', 'Huawei Cloud', 'Oracle Cloud']
+    let allData: any[] = []
+
+    for (let i = 0; i < tables.length; i++) {
+      try {
+        const data = await sequelize.query(`SELECT * FROM ${tables[i]} LIMIT ${limit}`, {
+          type: QueryTypes.SELECT
+        })
+        allData.push(...data.map((item: any) => ({ ...item, provider: providers[i] })))
+      } catch (err) {
+        console.log(`Table ${tables[i]} not found or error`)
+      }
+    }
+
+    res.json({ success: true, data: allData, total: allData.length })
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// NAT Gateway routes - by provider
+app.get('/api/natgateways/:provider?', async (req, res) => {
+  try {
+    const { provider } = req.params
+    const { limit = 1000 } = req.query
+
+    if (!dbConnected) {
+      return res.status(503).json({ success: false, error: 'Database not connected' })
+    }
+
+    // Map provider to table name
+    const providerTableMap: Record<string, string> = {
+      'aws': 'ngw_info',
+      'ali': 'ali_ngw_info',
+      'aliyun': 'ali_ngw_info',
+      'azure': 'azure_ngw_info',
+      'hwc': 'hwc_ngw_info',
+      'huawei': 'hwc_ngw_info',
+      'oci': 'oci_ngw_info',
+      'oracle': 'oci_ngw_info'
+    }
+
+    // If provider specified, return data for that provider only
+    if (provider) {
+      const tableName = providerTableMap[provider.toLowerCase()]
+      if (!tableName) {
+        return res.status(400).json({
+          success: false,
+          error: 'Unsupported provider'
+        })
+      }
+
+      try {
+        // Get table schema
+        const tableInfo = await sequelize.query(
+          `DESCRIBE ${tableName}`,
+          { type: QueryTypes.SELECT }
+        ) as any[]
+
+        // Get data
+        const data = await sequelize.query(`SELECT * FROM ${tableName} LIMIT ${limit}`, {
+          type: QueryTypes.SELECT
+        })
+
+        // Transform schema to frontend format
+        const transformedSchema = tableInfo.map((column: any) => ({
+          name: column.Field,
+          type: column.Type.split('(')[0],
+          nullable: column.Null === 'YES',
+          isPrimaryKey: column.Key === 'PRI',
+          filterable: ['varchar', 'char', 'text', 'enum'].some(t => column.Type.includes(t)),
+          sortable: true,
+          editable: !column.Key && column.Field !== 'created_time' && column.Field !== 'updated_time',
+          displayType: getDisplayType(column.Field, column.Type),
+          width: getColumnWidth(column.Field, column.Type)
+        }))
+
+        return res.json({
+          success: true,
+          data,
+          total: data.length,
+          provider,
+          tableName,
+          schema: transformedSchema
+        })
+      } catch (err) {
+        return res.json({ success: true, data: [], total: 0, schema: [] })
+      }
+    }
+
+    // If no provider, return all
+    const tables = ['ngw_info', 'ali_ngw_info', 'azure_ngw_info', 'hwc_ngw_info', 'oci_ngw_info']
+    const providers = ['AWS', 'Alibaba Cloud', 'Azure', 'Huawei Cloud', 'Oracle Cloud']
+    let allData: any[] = []
+
+    for (let i = 0; i < tables.length; i++) {
+      try {
+        const data = await sequelize.query(`SELECT * FROM ${tables[i]} LIMIT ${limit}`, {
+          type: QueryTypes.SELECT
+        })
+        allData.push(...data.map((item: any) => ({ ...item, provider: providers[i] })))
+      } catch (err) {
+        console.log(`Table ${tables[i]} not found or error`)
+      }
+    }
+
+    res.json({ success: true, data: allData, total: allData.length })
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// VPN Connection routes - by provider
+app.get('/api/vpnconnections/:provider?', async (req, res) => {
+  try {
+    const { provider } = req.params
+    const { limit = 1000 } = req.query
+
+    if (!dbConnected) {
+      return res.status(503).json({ success: false, error: 'Database not connected' })
+    }
+
+    // Map provider to table name
+    const providerTableMap: Record<string, string> = {
+      'aws': 'vpn_info',
+      'ali': 'ali_vpn_info',
+      'aliyun': 'ali_vpn_info',
+      'azure': 'azure_vpn_info',
+      'hwc': 'hwc_vpn_info',
+      'huawei': 'hwc_vpn_info',
+      'oci': 'oci_vpn_info',
+      'oracle': 'oci_vpn_info'
+    }
+
+    // If provider specified, return data for that provider only
+    if (provider) {
+      const tableName = providerTableMap[provider.toLowerCase()]
+      if (!tableName) {
+        return res.status(400).json({
+          success: false,
+          error: 'Unsupported provider'
+        })
+      }
+
+      try {
+        // Get table schema
+        const tableInfo = await sequelize.query(
+          `DESCRIBE ${tableName}`,
+          { type: QueryTypes.SELECT }
+        ) as any[]
+
+        // Get data
+        const data = await sequelize.query(`SELECT * FROM ${tableName} LIMIT ${limit}`, {
+          type: QueryTypes.SELECT
+        })
+
+        // Transform schema to frontend format
+        const transformedSchema = tableInfo.map((column: any) => ({
+          name: column.Field,
+          type: column.Type.split('(')[0],
+          nullable: column.Null === 'YES',
+          isPrimaryKey: column.Key === 'PRI',
+          filterable: ['varchar', 'char', 'text', 'enum'].some(t => column.Type.includes(t)),
+          sortable: true,
+          editable: !column.Key && column.Field !== 'created_time' && column.Field !== 'updated_time',
+          displayType: getDisplayType(column.Field, column.Type),
+          width: getColumnWidth(column.Field, column.Type)
+        }))
+
+        return res.json({
+          success: true,
+          data,
+          total: data.length,
+          provider,
+          tableName,
+          schema: transformedSchema
+        })
+      } catch (err) {
+        return res.json({ success: true, data: [], total: 0, schema: [] })
+      }
+    }
+
+    // If no provider, return all
+    const tables = ['vpn_info', 'ali_vpn_info', 'azure_vpn_info', 'hwc_vpn_info', 'oci_vpn_info']
+    const providers = ['AWS', 'Alibaba Cloud', 'Azure', 'Huawei Cloud', 'Oracle Cloud']
+    let allData: any[] = []
+
+    for (let i = 0; i < tables.length; i++) {
+      try {
+        const data = await sequelize.query(`SELECT * FROM ${tables[i]} LIMIT ${limit}`, {
+          type: QueryTypes.SELECT
+        })
+        allData.push(...data.map((item: any) => ({ ...item, provider: providers[i] })))
+      } catch (err) {
+        console.log(`Table ${tables[i]} not found or error`)
+      }
+    }
+
+    res.json({ success: true, data: allData, total: allData.length })
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// Transit Gateway Attachment routes - by provider
+app.get('/api/transitgatewayattachments/:provider?', async (req, res) => {
+  try {
+    const { provider } = req.params
+    const { limit = 1000 } = req.query
+
+    if (!dbConnected) {
+      return res.status(503).json({ success: false, error: 'Database not connected' })
+    }
+
+    // Map provider to table name
+    const providerTableMap: Record<string, string> = {
+      'aws': 'tgw_attachment_info',
+      'ali': 'ali_tgw_attachment_info',
+      'aliyun': 'ali_tgw_attachment_info',
+      'azure': 'azure_tgw_attachment_info',
+      'hwc': 'hwc_tgw_attachment_info',
+      'huawei': 'hwc_tgw_attachment_info',
+      'oci': 'oci_tgw_attachment_info',
+      'oracle': 'oci_tgw_attachment_info',
+      'gcp': 'gcp_tgw_attachment_info',
+      'others': 'other_tgw_attachment_info'
+    }
+
+    // If provider specified, return data for that provider only
+    if (provider) {
+      const tableName = providerTableMap[provider.toLowerCase()]
+      if (!tableName) {
+        return res.status(400).json({
+          success: false,
+          error: 'Unsupported provider'
+        })
+      }
+
+      try {
+        // Get table schema
+        const tableInfo = await sequelize.query(
+          `DESCRIBE ${tableName}`,
+          { type: QueryTypes.SELECT }
+        ) as any[]
+
+        // Get data
+        const data = await sequelize.query(`SELECT * FROM ${tableName} LIMIT ${limit}`, {
+          type: QueryTypes.SELECT
+        })
+
+        // Transform schema to frontend format
+        const transformedSchema = tableInfo.map((column: any) => ({
+          name: column.Field,
+          type: column.Type.split('(')[0],
+          nullable: column.Null === 'YES',
+          isPrimaryKey: column.Key === 'PRI',
+          filterable: ['varchar', 'char', 'text', 'enum'].some(t => column.Type.includes(t)),
+          sortable: true,
+          editable: !column.Key && column.Field !== 'created_time' && column.Field !== 'updated_time',
+          displayType: getDisplayType(column.Field, column.Type),
+          width: getColumnWidth(column.Field, column.Type)
+        }))
+
+        return res.json({
+          success: true,
+          data,
+          total: data.length,
+          provider,
+          tableName,
+          schema: transformedSchema
+        })
+      } catch (err) {
+        return res.json({ success: true, data: [], total: 0, schema: [] })
+      }
+    }
+
+    // If no provider, return all
+    const tables = ['tgw_attachment_info', 'ali_tgw_attachment_info', 'azure_tgw_attachment_info', 'hwc_tgw_attachment_info', 'oci_tgw_attachment_info', 'gcp_tgw_attachment_info', 'other_tgw_attachment_info']
+    const providers = ['AWS', 'Alibaba Cloud', 'Azure', 'Huawei Cloud', 'Oracle Cloud', 'Google Cloud', 'Others']
+    let allData: any[] = []
+
+    for (let i = 0; i < tables.length; i++) {
+      try {
+        const data = await sequelize.query(`SELECT * FROM ${tables[i]} LIMIT ${limit}`, {
+          type: QueryTypes.SELECT
+        })
+        allData.push(...data.map((item: any) => ({ ...item, provider: providers[i] })))
+      } catch (err) {
+        console.log(`Table ${tables[i]} not found or error`)
+      }
+    }
+
+    res.json({ success: true, data: allData, total: allData.length })
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// VPC Endpoint routes (Private Link) - by provider
+app.get('/api/vpcendpoints/:provider?', async (req, res) => {
+  try {
+    const { provider } = req.params
+    const { limit = 1000 } = req.query
+
+    if (!dbConnected) {
+      return res.status(503).json({ success: false, error: 'Database not connected' })
+    }
+
+    // Map provider to table name
+    const providerTableMap: Record<string, string> = {
+      'aws': 'vpc_endpoint_info',
+      'ali': 'ali_vpc_endpoint_info',
+      'aliyun': 'ali_vpc_endpoint_info',
+      'azure': 'azure_vpc_endpoint_info',
+      'hwc': 'hwc_vpc_endpoint_info',
+      'huawei': 'hwc_vpc_endpoint_info',
+      'oci': 'oci_vpc_endpoint_info',
+      'oracle': 'oci_vpc_endpoint_info',
+      'gcp': 'gcp_vpc_endpoint_info'
+    }
+
+    // If provider specified, return data for that provider only
+    if (provider) {
+      const tableName = providerTableMap[provider.toLowerCase()]
+      if (!tableName) {
+        return res.status(400).json({
+          success: false,
+          error: 'Unsupported provider'
+        })
+      }
+
+      try {
+        // Get table schema
+        const tableInfo = await sequelize.query(
+          `DESCRIBE ${tableName}`,
+          { type: QueryTypes.SELECT }
+        ) as any[]
+
+        // Get data
+        const data = await sequelize.query(`SELECT * FROM ${tableName} LIMIT ${limit}`, {
+          type: QueryTypes.SELECT
+        })
+
+        // Transform schema to frontend format
+        const transformedSchema = tableInfo.map((column: any) => ({
+          name: column.Field,
+          type: column.Type.split('(')[0],
+          nullable: column.Null === 'YES',
+          isPrimaryKey: column.Key === 'PRI',
+          filterable: ['varchar', 'char', 'text', 'enum'].some(t => column.Type.includes(t)),
+          sortable: true,
+          editable: !column.Key && column.Field !== 'created_time' && column.Field !== 'updated_time',
+          displayType: getDisplayType(column.Field, column.Type),
+          width: getColumnWidth(column.Field, column.Type)
+        }))
+
+        return res.json({
+          success: true,
+          data,
+          total: data.length,
+          provider,
+          tableName,
+          schema: transformedSchema
+        })
+      } catch (err) {
+        return res.json({ success: true, data: [], total: 0, schema: [] })
+      }
+    }
+
+    // If no provider, return all (currently only AWS has data)
+    const tables = ['vpc_endpoint_info']
+    const providers = ['AWS']
+    let allData: any[] = []
+
+    for (let i = 0; i < tables.length; i++) {
+      try {
+        const data = await sequelize.query(`SELECT * FROM ${tables[i]} LIMIT ${limit}`, {
+          type: QueryTypes.SELECT
+        })
+        allData.push(...data.map((item: any) => ({ ...item, provider: providers[i] })))
+      } catch (err) {
+        console.log(`Table ${tables[i]} not found or error`)
+      }
+    }
+
+    res.json({ success: true, data: allData, total: allData.length })
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
 // Error handling
 app.use((error: any, req: Request, res: Response, next: NextFunction) => {
   console.error('Error:', error)

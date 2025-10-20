@@ -14,6 +14,8 @@ import Vpc from './Vpc';
 import TransitGateway from './TransitGateway';
 import CustomerGateway from './CustomerGateway';
 import VpcEndpoint from './VpcEndpoint';
+import TransitGatewayAttachment from './TransitGatewayAttachment';
+import VpcEndpointInfo from './VpcEndpointInfo';
 
 // Search models
 import SavedQuery from './SavedQuery';
@@ -28,18 +30,20 @@ import './script-associations';
  */
 
 // Export all models
-export { 
-  User, 
-  Role, 
-  Permission, 
-  Script, 
-  ScriptExecution, 
-  ScriptParameter, 
+export {
+  User,
+  Role,
+  Permission,
+  Script,
+  ScriptExecution,
+  ScriptParameter,
   ScriptSchedule,
   Vpc,
   TransitGateway,
   CustomerGateway,
   VpcEndpoint,
+  TransitGatewayAttachment,
+  VpcEndpointInfo,
   SavedQuery
 };
 
@@ -120,8 +124,8 @@ export async function closeDatabaseConnection(): Promise<void> {
 export async function validateModels(): Promise<boolean> {
   try {
     // Check if all models are properly defined
-    const models = [User, Role, Permission, Script, ScriptExecution, ScriptParameter, ScriptSchedule, Vpc, TransitGateway, CustomerGateway, VpcEndpoint, SavedQuery];
-    
+    const models = [User, Role, Permission, Script, ScriptExecution, ScriptParameter, ScriptSchedule, Vpc, TransitGateway, CustomerGateway, VpcEndpoint, TransitGatewayAttachment, VpcEndpointInfo, SavedQuery];
+
     for (const model of models) {
       if (!model.tableName) {
         throw new Error(`Model ${model.name} is not properly defined`);
@@ -140,6 +144,8 @@ export async function validateModels(): Promise<boolean> {
     await TransitGateway.count();
     await CustomerGateway.count();
     await VpcEndpoint.count();
+    await TransitGatewayAttachment.count();
+    await VpcEndpointInfo.count();
     await SavedQuery.count();
 
     console.log('All models validated successfully.');
@@ -232,6 +238,13 @@ export default {
   ScriptExecution,
   ScriptParameter,
   ScriptSchedule,
+  Vpc,
+  TransitGateway,
+  CustomerGateway,
+  VpcEndpoint,
+  TransitGatewayAttachment,
+  VpcEndpointInfo,
+  SavedQuery,
   sequelize,
   initializeModels,
   closeDatabaseConnection,
